@@ -1,0 +1,86 @@
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family: Arial, sans-serif;
+  background:#0f172a;
+  color:white;
+}
+
+.page{
+  padding:30px;
+}
+
+.card{
+  background:#020617;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:15px;
+  box-shadow:0 0 10px rgba(0,0,0,0.5);
+}
+
+textarea,input{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:5px;
+  outline:none;
+}
+
+button{
+  background:#22c55e;
+  border:none;
+  padding:8px 15px;
+  border-radius:5px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+button:hover{
+  opacity:0.9;
+}
+
+.logout{
+  position:absolute;
+  top:20px;
+  right:20px;
+  background:#ef4444;
+  color:white;
+}
+@media(max-width:600px){
+  .page{
+    padding:15px;
+  }
+
+  .card{
+    padding:12px;
+  }
+
+  h2{
+    font-size:18px;
+  }
+}
+.status-approved{
+  color:#22c55e;
+  font-weight:bold;
+}
+
+.status-rejected{
+  color:#ef4444;
+  font-weight:bold;
+}
+
+.status-pending{
+  color:#eab308;
+  font-weight:bold;
+}
+button{
+ transition:0.2s;
+}
+
+button:hover{
+ transform:scale(1.05);
+}
