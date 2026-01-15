@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 
 export default function Caretaker(){
 
@@ -32,8 +33,9 @@ export default function Caretaker(){
   return(
     <>
       <Navbar />
+      <Sidebar />
 
-      <div className="page">
+      <div className="main">
 
         <h2>Caretaker Dashboard</h2>
 

@@ -82,5 +82,34 @@ router.put("/update/:id",
     );
   }
 );
+// DELETE
+router.delete("/:id",
+ auth(["student"]),
+ (req,res)=>{
+  db.query(
+   "DELETE FROM complaints WHERE id=?",
+   [req.params.id],
+   err=>{
+    if(err) return res.status(500).json(err);
+    res.json("Deleted");
+   }
+  );
+ }
+);
+
+// UPDATE
+router.put("/:id",
+ auth(["student"]),
+ (req,res)=>{
+  db.query(
+   "UPDATE complaints SET message=? WHERE id=?",
+   [req.body.message,req.params.id],
+   err=>{
+    if(err) return res.status(500).json(err);
+    res.json("Updated");
+   }
+  );
+ }
+);
 
 module.exports = router;

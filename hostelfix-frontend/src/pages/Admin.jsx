@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 import { toast } from "react-toastify";
 import {
   BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer
 } from "recharts";
-
 
 export default function Admin() {
 
@@ -49,8 +49,9 @@ export default function Admin() {
   return(
     <>
       <Navbar />
+      <Sidebar />
 
-      <div className="page">
+      <div className="main">
 
         <h2>Admin Dashboard</h2>
 
@@ -72,23 +73,19 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* CHART */}
         <h3 style={{marginTop:30}}>Analytics</h3>
 
-<div className="card" style={{height:300}}>
-
-<ResponsiveContainer width="100%" height="100%">
-
-<BarChart data={stats.complaints || []}>
-  <XAxis dataKey="status" />
-  <YAxis />
-  <Tooltip />
-  <Bar dataKey="total" />
-</BarChart>
-
-</ResponsiveContainer>
-
-</div>
-
+        <div className="card" style={{height:300}}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.complaints || []}>
+              <XAxis dataKey="status" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="total" fill="#22c55e" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
         {/* SEARCH */}
         <input
@@ -105,9 +102,11 @@ export default function Admin() {
 
           {filtered.map(u=>(
             <div key={u.id}
-              style={{display:"flex",
+              style={{
+                display:"flex",
                 justifyContent:"space-between",
-                marginBottom:10}}>
+                marginBottom:10
+              }}>
 
               <span>
                 {u.college_id} - {u.role}
@@ -132,24 +131,3 @@ export default function Admin() {
     </>
   );
 }
-const exportCSV = ()=>{
-
-  let csv="CollegeID,Role\n";
-
-  users.forEach(u=>{
-    csv += `${u.college_id},${u.role}\n`;
-  });
-
-  const blob = new Blob([csv],
-    { type:"text/csv" });
-
-  const url = window.URL.createObjectURL(blob);
-
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="users.csv";
-  a.click();
-};
-<button onClick={exportCSV}>
- Export Users CSV
-</button>
