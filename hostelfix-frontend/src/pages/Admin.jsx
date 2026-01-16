@@ -3,131 +3,303 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import { toast } from "react-toastify";
-import {
-  BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer
-} from "recharts";
 
-export default function Admin() {
+import { PieChart, Pie, Tooltip } from "recharts";
+import jsPDF from "jspdf";
+import AdminComplaints from "./AdminComplaints";
+
+export default function Admin(){
 
   const [users,setUsers]=useState([]);
-  const [stats,setStats]=useState({});
+  const [caretakers,setCaretakers]=useState([]);
+  const [map,setMap]=useState([]);
   const [search,setSearch]=useState("");
+  const [open,setOpen]=useState(false);
+  const [tab,setTab]=useState("assign");
 
-  useEffect(()=>{
-    fetchAll();
-  },[]);
+  const [newUser,setNewUser]=useState({
+    college_id:"",
+    password:"",
+    role:"student",
+    hostel:"BOYS HOSTEL",
+    name:"",
+    mobile:"",
+    dept:"",
+    year:"",
+    room_no:"",
+    email:""
+  });
 
-  const fetchAll=async()=>{
+  /* LOAD DATA */
+  const load = async()=>{
     try{
-      const u = await api.get("/admin/users");
-      const s = await api.get("/admin/stats");
+      const [u,ct,m]=await Promise.all([
+        api.get("/admin/users"),
+        api.get("/admin/caretakers"),
+        api.get("/admin/mapping")
+      ]);
 
       setUsers(u.data);
-      setStats(s.data);
+      setCaretakers(ct.data);
+      setMap(m.data);
+
     }catch{
-      toast.error("Failed to load data");
+      toast.error("Load failed");
     }
   };
 
-  const changeRole = async(id,role)=>{
-    try{
-      await api.put(`/admin/role/${id}`,{role});
-      toast.success("Role updated");
-      fetchAll();
-    }catch{
-      toast.error("Update failed");
-    }
+  useEffect(()=>{
+    load();
+  },[]);
+
+  /* PDF EXPORT */
+  const exportPDF=()=>{
+    const doc=new jsPDF();
+    users.forEach((u,i)=>{
+      doc.text(
+        `${i+1}. ${u.college_id} - ${u.role}`,
+        10,
+        10+(i*10)
+      );
+    });
+    doc.save("users.pdf");
   };
 
-  const filtered = users.filter(u=>
-    u.college_id
-     .toLowerCase()
-     .includes(search.toLowerCase())
-  );
+  /* PIE DATA */
+  const chartData = [
+    {name:"Students",value:users.filter(u=>u.role==="student").length},
+    {name:"Caretakers",value:users.filter(u=>u.role==="caretaker").length},
+    {name:"Admins",value:users.filter(u=>u.role==="admin").length},
+  ];
+
+  const assign=(student,caretaker)=>{
+    api.put("/admin/assign-student",{student,caretaker})
+      .then(()=>{ toast.success("Assigned"); load(); })
+      .catch(e=>toast.error(e.response?.data || "Error"));
+  };
+
+  const unassign=id=>{
+    api.put(`/admin/unassign/${id}`)
+      .then(()=>{ toast.success("Removed"); load(); });
+  };
+
+  const createUser=()=>{
+    if(!newUser.college_id || !newUser.password || !newUser.name){
+      toast.error("Required fields missing");
+      return;
+    }
+
+    api.post("/admin/create-user",newUser)
+      .then(()=>{
+        toast.success("User created");
+        setNewUser({
+          college_id:"",password:"",
+          role:"student",hostel:"BOYS HOSTEL",
+          name:"",mobile:"",
+          dept:"",year:"",
+          room_no:"",email:""
+        });
+        load();
+      })
+      .catch(e=>toast.error(e.response?.data || "Failed"));
+  };
+
+  const resetPwd=id=>{
+    const pwd = prompt("Enter new password");
+    if(!pwd) return;
+
+    api.put(`/admin/reset-password/${id}`,{
+      newPassword:pwd
+    }).then(()=>toast.success("Password reset"));
+  };
+
+  const deleteUser=id=>{
+    if(!window.confirm("Delete user?")) return;
+
+    api.delete(`/admin/user/${id}`)
+      .then(()=>{ toast.success("Deleted"); load(); });
+  };
 
   return(
-    <>
-      <Navbar />
-      <Sidebar />
+  <>
+   <Navbar toggleSidebar={()=>setOpen(!open)}/>
+   <Sidebar open={open}/>
 
-      <div className="main">
+   <div className="main">
 
-        <h2>Admin Dashboard</h2>
+{/* HEADER */}
+<div style={{display:"flex",justifyContent:"space-between"}}>
+<h2>🛡 Admin Control</h2>
+<button onClick={exportPDF}>Export PDF</button>
+</div>
 
-        {/* STATS */}
-        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+{/* ANALYTICS */}
+<div className="card">
+<h3>User Analytics</h3>
+<PieChart width={300} height={300}>
+ <Pie data={chartData} dataKey="value" />
+ <Tooltip/>
+</PieChart>
+</div>
 
-          <div className="card" style={{flex:1}}>
-            <h3>User Stats</h3>
-            {stats.users?.map(u=>(
-              <p key={u.role}>{u.role}: {u.total}</p>
-            ))}
-          </div>
+{/* TABS */}
+<div style={{display:"flex",gap:10,marginBottom:20}}>
+{["assign","add","map","manage","complaints"].map(t=>(
+<button
+ key={t}
+ onClick={()=>setTab(t)}
+ style={{
+  background:tab===t?"#8b5cf6":"rgba(255,255,255,.08)",
+  color:tab===t?"black":"white"
+ }}
+>
+{t.toUpperCase()}
+</button>
+))}
+</div>
 
-          <div className="card" style={{flex:1}}>
-            <h3>Complaint Stats</h3>
-            {stats.complaints?.map(c=>(
-              <p key={c.status}>{c.status}: {c.total}</p>
-            ))}
-          </div>
-        </div>
+{/* ASSIGN */}
+{tab==="assign" && (
+<>
+<h3>Assign Students</h3>
 
-        {/* CHART */}
-        <h3 style={{marginTop:30}}>Analytics</h3>
+<input
+ placeholder="Search..."
+ value={search}
+ onChange={e=>setSearch(e.target.value)}
+/>
 
-        <div className="card" style={{height:300}}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.complaints || []}>
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="total" fill="#22c55e" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+<div className="card">
+{users.filter(u=>
+ u.role==="student" &&
+ u.college_id.toLowerCase().includes(search.toLowerCase())
+).map(s=>(
+<div key={s.id}
+ style={{
+  display:"flex",
+  justifyContent:"space-between",
+  marginBottom:10
+ }}>
 
-        {/* SEARCH */}
-        <input
-          placeholder="Search college id..."
-          value={search}
-          onChange={e=>setSearch(e.target.value)}
-        />
+<span>{s.college_id}</span>
 
-        <br/><br/>
+<select
+ value={s.assigned_caretaker||""}
+ onChange={e=>assign(s.college_id,e.target.value)}
+>
+<option value="">Not assigned</option>
 
-        {/* USERS */}
-        <div className="card">
-          <h3>All Users</h3>
+{caretakers
+.filter(c=>c.hostel===s.hostel)
+.map(c=>(
+<option key={c.id} value={c.college_id}>
+ {c.college_id}
+</option>
+))}
+</select>
 
-          {filtered.map(u=>(
-            <div key={u.id}
-              style={{
-                display:"flex",
-                justifyContent:"space-between",
-                marginBottom:10
-              }}>
+{s.assigned_caretaker && (
+<button
+ style={{background:"#ef4444"}}
+ onClick={()=>unassign(s.id)}
+>
+Remove
+</button>
+)}
 
-              <span>
-                {u.college_id} - {u.role}
-              </span>
+</div>
+))}
+</div>
+</>
+)}
 
-              <select
-                value={u.role}
-                onChange={e=>
-                  changeRole(u.id,e.target.value)
-                }
-              >
-                <option>student</option>
-                <option>caretaker</option>
-                <option>admin</option>
-              </select>
+{/* ADD USER */}
+{tab==="add" && (
+<div className="card">
+<h3>Add User</h3>
 
-            </div>
-          ))}
-        </div>
+<input
+ placeholder="Name"
+ value={newUser.name}
+ onChange={e=>setNewUser({...newUser,name:e.target.value})}
+/>
 
-      </div>
-    </>
+<input
+ placeholder="College ID"
+ value={newUser.college_id}
+ onChange={e=>setNewUser({...newUser,college_id:e.target.value})}
+/>
+
+<input
+ type="password"
+ placeholder="Password"
+ value={newUser.password}
+ onChange={e=>setNewUser({...newUser,password:e.target.value})}
+/>
+
+<select
+ value={newUser.role}
+ onChange={e=>setNewUser({...newUser,role:e.target.value})}
+>
+<option value="student">Student</option>
+<option value="caretaker">Caretaker</option>
+<option value="admin">Admin</option>
+</select>
+
+<button onClick={createUser}>
+Create User
+</button>
+</div>
+)}
+
+{/* MAP */}
+{tab==="map" && (
+<div className="card">
+<h3>Mapping</h3>
+{map.map(m=>(
+<p key={m.student}>
+ {m.student} → {m.caretaker || "Not assigned"}
+</p>
+))}
+</div>
+)}
+
+{/* MANAGE */}
+{tab==="manage" && (
+<div className="card">
+<h3>Manage Users</h3>
+
+{users.map(u=>(
+<div key={u.id}
+ style={{
+  display:"flex",
+  justifyContent:"space-between",
+  marginBottom:8
+ }}>
+
+<span>{u.college_id} - {u.role}</span>
+
+<div>
+<button onClick={()=>resetPwd(u.id)}>Reset</button>
+<button
+ style={{background:"#ef4444",marginLeft:6}}
+ onClick={()=>deleteUser(u.id)}
+>
+Delete
+</button>
+</div>
+
+</div>
+))}
+</div>
+)}
+
+{/* COMPLAINTS */}
+{tab==="complaints" && (
+ <AdminComplaints/>
+)}
+
+   </div>
+  </>
   );
 }

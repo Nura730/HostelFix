@@ -5,38 +5,50 @@ import Sidebar from "../components/Sidebar";
 
 export default function Student() {
 
-  const [message, setMessage] = useState("");
-  const [myComplaints, setMyComplaints] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [edit, setEdit] = useState(null); // ✅ moved here
+  const [message,setMessage]=useState("");
+  const [priority,setPriority]=useState("normal");
+  const [image,setImage]=useState(null);
 
-  useEffect(() => {
+  const [myComplaints,setMyComplaints]=useState([]);
+  const [search,setSearch]=useState("");
+  const [filter,setFilter]=useState("all");
+  const [edit,setEdit]=useState(null);
+  const [open,setOpen]=useState(false);
+
+  useEffect(()=>{
     loadMyComplaints();
-  }, []);
+  },[]);
 
-  const loadMyComplaints = async () => {
+  const loadMyComplaints = async()=>{
     const res = await api.get("/complaint/my");
     setMyComplaints(res.data);
   };
 
-  const submitComplaint = async () => {
-    if (!message.trim()) return alert("Write something first");
+  const submitComplaint = async()=>{
 
-    await api.post("/complaint/add", { message });
+    if(!message.trim()) return;
+
+    const form=new FormData();
+    form.append("message",message);
+    form.append("priority",priority);
+    if(image) form.append("image",image);
+
+    await api.post("/complaint/add",form,{
+      headers:{ "Content-Type":"multipart/form-data" }
+    });
 
     setMessage("");
+    setPriority("normal");
+    setImage(null);
     loadMyComplaints();
   };
 
-  // DELETE
   const deleteComplaint = async(id)=>{
     if(!window.confirm("Delete complaint?")) return;
     await api.delete(`/complaint/${id}`);
     loadMyComplaints();
   };
 
-  // UPDATE
   const updateComplaint = async()=>{
     await api.put(`/complaint/${edit.id}`,{
       message:edit.message
@@ -45,53 +57,76 @@ export default function Student() {
     loadMyComplaints();
   };
 
-  const filtered = myComplaints.filter((c) => {
-    const matchText = c.message
+  const filtered = myComplaints.filter(c=>{
+    const matchText=c.message
       .toLowerCase()
       .includes(search.toLowerCase());
 
-    const matchStatus =
-      filter === "all" ? true : c.status === filter;
+    const matchStatus=
+      filter==="all" ? true : c.status===filter;
 
     return matchText && matchStatus;
   });
 
-  return (
+  const daysPassed = date=>{
+    const d1=new Date(date);
+    const d2=new Date();
+    return Math.floor(
+      (d2-d1)/(1000*60*60*24)
+    );
+  };
+
+  return(
     <>
-      <Navbar />
-      <Sidebar />
+      <Navbar toggleSidebar={()=>setOpen(!open)} />
+      <Sidebar open={open} />
 
       <div className="main">
 
-        <h2>Student Dashboard</h2>
+        <h2>🎓 Student Dashboard</h2>
 
-        {/* ADD COMPLAINT */}
+        {/* SUBMIT */}
         <div className="card">
+
+          <h3>➕ New Complaint</h3>
+
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e=>setMessage(e.target.value)}
             rows="4"
-            placeholder="Write complaint..."
+            placeholder="Describe your issue..."
           />
 
-          <br /><br />
+          <select
+            value={priority}
+            onChange={e=>setPriority(e.target.value)}
+          >
+            <option value="urgent">Urgent</option>
+            <option value="normal">Normal</option>
+          </select>
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={e=>setImage(e.target.files[0])}
+          />
 
           <button onClick={submitComplaint}>
-            Submit
+            Submit Complaint
           </button>
         </div>
 
-        {/* SEARCH & FILTER */}
-        <div style={{ display: "flex", gap: 10 }}>
+        {/* FILTER */}
+        <div style={{display:"flex",gap:10}}>
           <input
-            placeholder="Search complaint..."
+            placeholder="Search..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e=>setSearch(e.target.value)}
           />
 
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={e=>setFilter(e.target.value)}
           >
             <option value="all">All</option>
             <option value="approved">Approved</option>
@@ -100,63 +135,93 @@ export default function Student() {
           </select>
         </div>
 
-        <br />
+        <br/>
 
-        {filtered.length === 0 && (
-          <div className="card">
-            <p>No matching complaints</p>
-          </div>
-        )}
+        {/* LIST */}
+        {filtered.map(c=>{
 
-        {filtered.map((c) => (
-          <div key={c.id} className="card">
+          const days=daysPassed(c.created_at);
 
-            <p>{c.message}</p>
+          return(
+            <div key={c.id} className="card">
 
-            <p>
-              Status:{" "}
-              <span className={`status-${c.status}`}>
-                {c.status}
-              </span>
-            </p>
+              <p>{c.message}</p>
 
-            <div style={{ marginTop: 10 }}>
-              <button
-                onClick={() => setEdit(c)}
-                style={{ background: "#3b82f6" }}
-              >
-                Edit
-              </button>
+              {c.image && (
+                <img
+                  src={`http://localhost:5000/uploads/${c.image}`}
+                  width="100%"
+                  style={{borderRadius:14,marginBottom:10}}
+                />
+              )}
 
-              <button
-                onClick={() => deleteComplaint(c.id)}
-                style={{
-                  background: "#ef4444",
-                  marginLeft: 10
-                }}
-              >
-                Delete
-              </button>
+              <p>
+                Priority:
+                <span className={`pri ${c.priority}`}>
+                  {c.priority}
+                </span>
+              </p>
+
+              <p>
+                Status:
+                <span className={`status-${c.status}`}>
+                  {c.status}
+                </span>
+              </p>
+
+              {c.reply && (
+                <p style={{color:"#a78bfa"}}>
+                  💬 Caretaker: {c.reply}
+                </p>
+              )}
+
+              <p>
+                Days pending: {days}
+              </p>
+
+              {c.status==="pending" && days>=7 && (
+                <p style={{color:"#facc15"}}>
+                  ⚠ No response for 7 days.
+                </p>
+              )}
+
+              <div style={{marginTop:10}}>
+
+                <button
+                  onClick={() => setEdit(c)}
+                  style={{background:"#6366f1"}}
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => deleteComplaint(c.id)}
+                  style={{
+                    background:"#ef4444",
+                    marginLeft:10
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
-        {/* EDIT POPUP */}
+        {/* EDIT */}
         {edit && (
           <div className="card">
             <h3>Edit Complaint</h3>
 
             <textarea
               value={edit.message}
-              onChange={(e)=>
+              onChange={e=>
                 setEdit({
                   ...edit,
                   message:e.target.value
                 })
               }
             />
-
-            <br /><br />
 
             <button onClick={updateComplaint}>
               Save

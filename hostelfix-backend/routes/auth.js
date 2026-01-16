@@ -23,7 +23,6 @@ router.post("/register", (req, res) => {
 
       const hash = bcrypt.hashSync(password, 10);
 
-      // default role = student
       db.query(
         "INSERT INTO users (college_id,password,role) VALUES (?,?,?)",
         [college_id, hash, "student"],
@@ -45,12 +44,10 @@ router.post("/login", (req, res) => {
     [college_id],
     async (err, rows) => {
       if (err) return res.status(500).json({ msg: "DB error" });
-
       if (rows.length === 0)
         return res.status(401).json({ msg: "Invalid credentials" });
 
       const user = rows[0];
-
       const match = await bcrypt.compare(password, user.password);
       if (!match)
         return res.status(401).json({ msg: "Invalid credentials" });
@@ -74,6 +71,65 @@ router.post("/login", (req, res) => {
           college_id: user.college_id
         }
       });
+    }
+  );
+});
+
+/* SEND OTP */
+router.post("/send-otp", (req, res) => {
+  const { college_id } = req.body;
+
+  if (!college_id)
+    return res.status(400).json("College ID required");
+
+  const otp = Math.floor(100000 + Math.random() * 900000);
+  const expiry = new Date(Date.now() + 5 * 60000); // 5 mins
+
+  db.query(
+    "UPDATE users SET reset_otp=?, otp_expiry=? WHERE college_id=?",
+    [otp, expiry, college_id],
+    (err, result) => {
+      if (err) return res.status(500).json(err);
+      if (result.affectedRows === 0)
+        return res.status(404).json("User not found");
+
+      console.log("OTP:", otp); // TEMP (email later)
+
+      res.json("OTP sent (check backend console)");
+    }
+  );
+});
+
+/* RESET PASSWORD */
+router.post("/reset-password", async (req, res) => {
+  const { college_id, otp, newPassword } = req.body;
+
+  db.query(
+    "SELECT * FROM users WHERE college_id=?",
+    [college_id],
+    async (err, rows) => {
+      if (err) return res.status(500).json(err);
+      if (rows.length === 0)
+        return res.status(404).json("User not found");
+
+      const user = rows[0];
+
+      if (
+        user.reset_otp !== otp ||
+        new Date(user.otp_expiry) < new Date()
+      )
+        return res.status(400).json("Invalid or expired OTP");
+
+      const hash = await bcrypt.hash(newPassword, 10);
+
+      db.query(
+        "UPDATE users SET password=?, reset_otp=NULL, otp_expiry=NULL WHERE id=?",
+        [hash, user.id],
+        err => {
+          if (err) return res.status(500).json(err);
+          res.json("Password updated");
+        }
+      );
     }
   );
 });

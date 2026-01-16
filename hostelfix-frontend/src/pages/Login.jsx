@@ -1,61 +1,76 @@
 import { useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import api from "../api/api";
+import { toast } from "react-toastify";
+import "./login.css";
 
-export default function Login() {
-  const [collegeId, setCollegeId] = useState("");
-  const [password, setPassword] = useState("");
-  const navigate = useNavigate();
+export default function Login(){
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const [form,setForm]=useState({
+    college_id:"",
+    password:""
+  });
 
-    try {
-      const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        {
-          college_id: collegeId,
-          password,
-        }
-      );
+  const handleLogin = async () =>{
+    if(!form.college_id || !form.password){
+      toast.error("All fields required");
+      return;
+    }
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+    try{
+      const res = await api.post("/admin/login",form);
+
+      localStorage.setItem("token",res.data.token);
+      localStorage.setItem("user",JSON.stringify(res.data.user));
+
+      toast.success("Login success");
 
       const role = res.data.user.role;
+      if(role==="admin") window.location="/admin";
+      else if(role==="caretaker") window.location="/caretaker";
+      else window.location="/student";
 
-      if (role === "student") navigate("/student");
-      if (role === "caretaker") navigate("/caretaker");
-      if (role === "admin") navigate("/admin");
-
-    } catch {
-  alert("Login failed");
-}
-
+    }catch{
+      toast.error("Invalid credentials");
+    }
   };
 
-  return (
-    <div style={{ padding: 40 }}>
-      <h2>Login</h2>
+  return(
+    <div className="login-bg">
 
-      <form onSubmit={handleLogin}>
+      <div className="login-card">
+
+        <h1 className="logo">HostelFix</h1>
+        <p className="tagline">
+          Smart Hostel Management
+        </p>
+
         <input
           placeholder="College ID"
-          value={collegeId}
-          onChange={(e) => setCollegeId(e.target.value)}
+          value={form.college_id}
+          onChange={e=>
+            setForm({...form,college_id:e.target.value})
+          }
         />
-        <br /><br />
 
         <input
           type="password"
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={form.password}
+          onChange={e=>
+            setForm({...form,password:e.target.value})
+          }
         />
-        <br /><br />
 
-        <button>Login</button>
-      </form>
+        <button onClick={handleLogin}>
+          Login
+        </button>
+
+        <small className="note">
+          Student • Caretaker • Admin
+        </small>
+
+      </div>
+
     </div>
   );
 }

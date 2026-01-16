@@ -7,6 +7,9 @@ export default function Caretaker(){
 
   const [list,setList]=useState([]);
   const [page,setPage]=useState(1);
+  const [open,setOpen]=useState(false);
+  const [comment,setComment]=useState("");
+
   const perPage=3;
 
   useEffect(()=>{
@@ -20,10 +23,14 @@ export default function Caretaker(){
 
   const updateStatus = async(id,status)=>{
 
-    if(!window.confirm(`Are you sure to ${status}?`))
-      return;
+    if(!window.confirm(`Are you sure?`)) return;
 
-    await api.put(`/complaint/update/${id}`,{status});
+    await api.put(`/complaint/update/${id}`,{
+      status,
+      comment
+    });
+
+    setComment("");
     fetchData();
   };
 
@@ -32,42 +39,71 @@ export default function Caretaker(){
 
   return(
     <>
-      <Navbar />
-      <Sidebar />
+      <Navbar toggleSidebar={()=>setOpen(!open)} />
+      <Sidebar open={open} />
 
       <div className="main">
 
-        <h2>Caretaker Dashboard</h2>
-
-        {current.length===0 && (
-          <div className="card">
-            <p>No pending complaints</p>
-          </div>
-        )}
+        <h2>🛠 Caretaker Dashboard</h2>
 
         {current.map(c=>(
+
           <div key={c.id} className="card">
 
-            <p><b>Student:</b> {c.student_id}</p>
-            <p>{c.message}</p>
+            <h4>👤 Student: {c.student_id}</h4>
 
-            <button
-              onClick={()=>updateStatus(c.id,"approved")}
-            >
-              Approve
-            </button>
+            <p style={{margin:"10px 0"}}>
+              {c.message}
+            </p>
 
-            <button
-              onClick={()=>updateStatus(c.id,"rejected")}
-              style={{marginLeft:10}}
-            >
-              Reject
-            </button>
+            {/* IMAGE */}
+            {c.image && (
+              <img
+                src={`http://localhost:5000/uploads/${c.image}`}
+                width="100%"
+                style={{borderRadius:14,marginBottom:10}}
+              />
+            )}
+
+            {/* COMMENT */}
+            <textarea
+              placeholder="Write your comment..."
+              value={comment}
+              onChange={e=>setComment(e.target.value)}
+            />
+
+            <div style={{
+              display:"flex",
+              gap:10,
+              marginTop:10
+            }}>
+              <button
+                onClick={()=>updateStatus(c.id,"approved")}
+                style={{background:"#22c55e"}}
+              >
+                Approve
+              </button>
+
+              <button
+                onClick={()=>updateStatus(c.id,"rejected")}
+                style={{background:"#ef4444"}}
+              >
+                Reject
+              </button>
+            </div>
+
           </div>
+
         ))}
 
         {/* PAGINATION */}
-        <div style={{marginTop:20}}>
+        <div style={{
+          marginTop:20,
+          display:"flex",
+          alignItems:"center",
+          gap:10
+        }}>
+
           <button
             disabled={page===1}
             onClick={()=>setPage(p=>p-1)}
@@ -75,7 +111,7 @@ export default function Caretaker(){
             Prev
           </button>
 
-          <span style={{margin:"0 10px"}}>
+          <span>
             Page {page}
           </span>
 
@@ -85,6 +121,7 @@ export default function Caretaker(){
           >
             Next
           </button>
+
         </div>
 
       </div>

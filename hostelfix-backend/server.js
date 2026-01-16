@@ -20,3 +20,10 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
+const notifyRoutes = require("./routes/notification");
+
+app.use("/api/notifications", notifyRoutes);
+app.use("/uploads", express.static("uploads"));
+const profileRoutes = require("./routes/profile");
+
+app.use("/api/profile", profileRoutes);

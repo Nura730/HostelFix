@@ -1,0 +1,45 @@
+.login-bg{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:
+  radial-gradient(circle at top,#1e1b4b,#020617);
+}
+
+.login-card{
+  width:340px;
+  padding:35px;
+  border-radius:22px;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.15);
+  text-align:center;
+  box-shadow:0 30px 60px rgba(0,0,0,.6);
+}
+
+.logo{
+  font-size:28px;
+  letter-spacing:1px;
+}
+
+.tagline{
+  font-size:13px;
+  opacity:.7;
+  margin-bottom:20px;
+}
+
+.login-card input{
+  margin-bottom:12px;
+}
+
+.login-card button{
+  width:100%;
+  margin-top:10px;
+}
+
+.note{
+  display:block;
+  margin-top:15px;
+  opacity:.6;
+}

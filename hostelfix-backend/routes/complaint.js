@@ -1,36 +1,110 @@
 const express = require("express");
 const db = require("../config/db");
 const auth = require("../middleware/auth");
+const multer = require("multer");
 
 const router = express.Router();
 
-/* STUDENT - ADD */
+/* MULTER */
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename:(req,file,cb)=>{
+    cb(null,Date.now()+"-"+file.originalname);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits:{ fileSize:5*1024*1024 },
+  fileFilter:(req,file,cb)=>{
+    if(
+      file.mimetype==="image/jpeg" ||
+      file.mimetype==="image/png"
+    ){
+      cb(null,true);
+    }else{
+      cb("Only images allowed");
+    }
+  }
+});
+
+/* STUDENT ADD */
 router.post("/add",
   auth(["student"]),
+  upload.single("image"),
   (req,res)=>{
-    const { message } = req.body;
-    const student_id = req.user.college_id;
 
+    const { message, priority } = req.body;
+    const student = req.user.college_id;
+    const image = req.file?.filename || null;
+
+    // STEP 1 – get assigned caretaker
     db.query(
-      "INSERT INTO complaints (student_id,message,status) VALUES (?,?,?)",
-      [student_id,message,"pending"],
-      (err)=>{
-        if(err) return res.status(500).json(err);
-        res.json("Complaint added");
+      "SELECT assigned_caretaker,hostel FROM users WHERE college_id=?",
+      [student],
+      (e,u)=>{
+        if(e) return res.status(500).json(e);
+        if(!u.length)
+          return res.status(404).json("Student not found");
+
+        let caretaker = u[0].assigned_caretaker;
+
+        // STEP 2 – fallback if not assigned
+        if(!caretaker){
+          db.query(
+            "SELECT college_id FROM users WHERE role='caretaker' AND hostel=? LIMIT 1",
+            [u[0].hostel],
+            (e2,c)=>{
+              if(e2) return res.status(500).json(e2);
+              if(!c.length)
+                return res.status(400).json("No caretaker for hostel");
+
+              caretaker = c[0].college_id;
+              insert(caretaker);
+            }
+          );
+        }else{
+          insert(caretaker);
+        }
+
+        function insert(caretaker){
+          db.query(
+            `INSERT INTO complaints
+             (student_id,message,status,priority,image,assigned_to)
+             VALUES (?,?,?,?,?,?)`,
+            [
+              student,
+              message,
+              "pending",
+              priority,
+              image,
+              caretaker
+            ],
+            err=>{
+              if(err) return res.status(500).json(err);
+              res.json("Complaint submitted");
+            }
+          );
+        }
       }
     );
   }
 );
 
-/* STUDENT - MY COMPLAINTS */
+/* STUDENT VIEW */
 router.get("/my",
   auth(["student"]),
   (req,res)=>{
-    const student_id = req.user.college_id;
 
     db.query(
-      "SELECT * FROM complaints WHERE student_id=? ORDER BY id DESC",
-      [student_id],
+      `SELECT c.*,
+      (SELECT message FROM complaint_comments
+       WHERE complaint_id=c.id
+       ORDER BY id DESC LIMIT 1) AS reply
+       FROM complaints c
+       WHERE student_id=?
+       ORDER BY c.id DESC`,
+      [req.user.college_id],
       (err,data)=>{
         if(err) return res.status(500).json(err);
         res.json(data);
@@ -39,25 +113,14 @@ router.get("/my",
   }
 );
 
-/* CARETAKER - ALL */
-router.get("/all",
-  auth(["caretaker"]),
-  (req,res)=>{
-    db.query("SELECT * FROM complaints",
-      (err,data)=>{
-        if(err) return res.status(500).json(err);
-        res.json(data);
-      }
-    );
-  }
-);
-
-/* CARETAKER - PENDING */
+/* CARETAKER VIEW */
 router.get("/pending",
   auth(["caretaker"]),
   (req,res)=>{
+
     db.query(
-      "SELECT * FROM complaints WHERE status='pending'",
+      "SELECT * FROM complaints WHERE assigned_to=?",
+      [req.user.college_id],
       (err,data)=>{
         if(err) return res.status(500).json(err);
         res.json(data);
@@ -66,50 +129,36 @@ router.get("/pending",
   }
 );
 
-/* CARETAKER - UPDATE */
+/* CARETAKER UPDATE */
 router.put("/update/:id",
   auth(["caretaker"]),
   (req,res)=>{
-    const {status}=req.body;
+
+    const {status,comment}=req.body;
 
     db.query(
       "UPDATE complaints SET status=? WHERE id=?",
       [status,req.params.id],
-      (err)=>{
+      err=>{
         if(err) return res.status(500).json(err);
+
+        if(comment){
+          db.query(
+            `INSERT INTO complaint_comments
+             (complaint_id,caretaker_id,message)
+             VALUES (?,?,?)`,
+            [
+              req.params.id,
+              req.user.college_id,
+              comment
+            ]
+          );
+        }
+
         res.json("Updated");
       }
     );
   }
-);
-// DELETE
-router.delete("/:id",
- auth(["student"]),
- (req,res)=>{
-  db.query(
-   "DELETE FROM complaints WHERE id=?",
-   [req.params.id],
-   err=>{
-    if(err) return res.status(500).json(err);
-    res.json("Deleted");
-   }
-  );
- }
-);
-
-// UPDATE
-router.put("/:id",
- auth(["student"]),
- (req,res)=>{
-  db.query(
-   "UPDATE complaints SET message=? WHERE id=?",
-   [req.body.message,req.params.id],
-   err=>{
-    if(err) return res.status(500).json(err);
-    res.json("Updated");
-   }
-  );
- }
 );
 
 module.exports = router;

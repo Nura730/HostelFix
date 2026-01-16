@@ -2,12 +2,12 @@ import { NavLink } from "react-router-dom";
 import {
   FaHome,
   FaUser,
-  FaCog,
   FaSignOutAlt,
-  FaClipboardList
+  FaCog,
+  FaTools
 } from "react-icons/fa";
 
-export default function Sidebar() {
+export default function Sidebar({ open }) {
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -17,24 +17,32 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${open ? "show" : ""}`}>
 
-      <h2 className="logo">HostelFix</h2>
+      <h2 className="logo">HF</h2>
 
       <NavLink to={`/${user.role}`} className="nav">
-        <FaHome /> Dashboard
+        <FaHome/><span>Dashboard</span>
       </NavLink>
 
       <NavLink to="/profile" className="nav">
-        <FaUser /> Profile
+        <FaUser/><span>Profile</span>
       </NavLink>
 
-      <NavLink to="/settings" className="nav">
-        <FaCog /> Settings
-      </NavLink>
+      {user.role==="admin" && (
+        <NavLink to="/admin" className="nav">
+          <FaCog/><span>Admin</span>
+        </NavLink>
+      )}
+
+      {user.role==="caretaker" && (
+        <NavLink to="/caretaker" className="nav">
+          <FaTools/><span>Tasks</span>
+        </NavLink>
+      )}
 
       <button onClick={logout} className="logoutBtn">
-        <FaSignOutAlt /> Logout
+        <FaSignOutAlt/><span>Logout</span>
       </button>
 
     </div>
