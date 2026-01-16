@@ -4,10 +4,16 @@ module.exports = (roles = []) => {
 
  return (req, res, next) => {
 
-  const token = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-  if (!token)
+  if (!authHeader)
    return res.status(401).json("No token");
+
+  // Remove "Bearer "
+  const token = authHeader.split(" ")[1];
+
+  if(!token)
+   return res.status(401).json("Invalid token format");
 
   try {
 
@@ -22,7 +28,7 @@ module.exports = (roles = []) => {
    req.user = decoded;
    next();
 
-  } catch {
+  } catch (err) {
    res.status(401).json("Invalid token");
   }
 

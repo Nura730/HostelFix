@@ -10,7 +10,10 @@ export default function Navbar({ toggleSidebar }) {
 
   const [list,setList]=useState([]);
   const [open,setOpen]=useState(false);
-  const [theme,setTheme]=useState("dark");
+  const [scrolled,setScrolled]=useState(false);
+  const [profile,setProfile]=useState(null);
+
+  if (!user) return null;
 
   /* LOGOUT */
   const logout = () => {
@@ -18,25 +21,34 @@ export default function Navbar({ toggleSidebar }) {
     nav("/");
   };
 
-  if (!user) return null;
-
-  /* THEME TOGGLE */
+  /* SCROLL BLUR */
   useEffect(()=>{
-    document.body.className = theme;
-  },[theme]);
+    const onScroll=()=>{
+      setScrolled(window.scrollY>20);
+    };
+    window.addEventListener("scroll",onScroll);
+    return()=>window.removeEventListener("scroll",onScroll);
+  },[]);
 
-  /* FETCH NOTIFICATIONS */
+  /* LOAD PROFILE IMAGE */
+  const loadProfile = async()=>{
+    try{
+      const res = await api.get("/profile");
+      setProfile(res.data.image);
+    }catch{}
+  };
+
+  /* LOAD NOTIFICATIONS */
   const load = async()=>{
     try{
       const res = await api.get("/notifications");
       setList(res.data);
-    }catch(err){
-      console.log(err);
-    }
+    }catch{}
   };
 
   useEffect(()=>{
     load();
+    loadProfile();
     const timer=setInterval(load,5000);
     return ()=>clearInterval(timer);
   },[]);
@@ -49,7 +61,7 @@ export default function Navbar({ toggleSidebar }) {
   };
 
   return (
-    <div className="navbar">
+    <div className={`navbar ${scrolled?"blur":""}`}>
 
       {/* MOBILE MENU */}
       <FaBars
@@ -57,45 +69,34 @@ export default function Navbar({ toggleSidebar }) {
         onClick={toggleSidebar}
       />
 
-      <h3 style={{letterSpacing:1}}>
-        HostelFix
-      </h3>
+      {/* LOGO */}
+      <div className="brand">
+        <span className="logoIcon">⚡</span>
+        <h3>HostelFix</h3>
+      </div>
 
       <div className="navRight">
-
-        {/* THEME */}
-        <button
-          onClick={()=>setTheme(
-            t=>t==="dark"?"light":"dark"
-          )}
-          style={{
-            background:"transparent",
-            fontSize:18
-          }}
-        >
-          {theme==="dark"?"🌙":"☀️"}
-        </button>
 
         {/* NOTIFICATION */}
         <div className="notifyWrap">
 
           <FaBell
-            className="icon"
+            className="icon glow"
             size={18}
             onClick={()=>setOpen(!open)}
           />
 
           {unread.length>0 && (
-            <span className="badge">
+            <span className="badge pulse">
               {unread.length}
             </span>
           )}
 
           {open && (
-            <div className="notifyBox">
+            <div className="notifyBox glass slideDown">
 
               {list.length===0 && (
-                <p>No notifications</p>
+                <p className="empty">No notifications</p>
               )}
 
               {list.map(n=>(
@@ -114,18 +115,42 @@ export default function Navbar({ toggleSidebar }) {
           )}
         </div>
 
-        {/* ROLE */}
-        <span className="role">
-          {user.role.toUpperCase()}
-        </span>
+        {/* PROFILE */}
+        <div className="profileWrap">
 
-        {/* LOGOUT */}
-        <button
-          onClick={logout}
-          className="logoutSmall"
-        >
-          Logout
-        </button>
+          <img
+            src={
+              profile
+              ? `http://localhost:5000/uploads/${profile}`
+              : "https://ui-avatars.com/api/?name="+user.college_id
+            }
+            className="avatar"
+          />
+
+          <div className="profileDrop">
+
+            <p className="name">
+              {user.college_id}
+            </p>
+
+            <span className="roleTag">
+              {user.role}
+            </span>
+
+            <button onClick={()=>nav("/profile")}>
+              View Profile
+            </button>
+
+            <button
+              className="danger"
+              onClick={logout}
+            >
+              Logout
+            </button>
+
+          </div>
+        </div>
+
       </div>
 
     </div>

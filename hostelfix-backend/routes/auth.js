@@ -1,11 +1,23 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const db = require("../config/db");
 
 const router = express.Router();
 
-/* REGISTER */
+/* ================= EMAIL CONFIG ================= */
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+/* ================= REGISTER ================= */
+
 router.post("/register", (req, res) => {
   const { college_id, password } = req.body;
 
@@ -35,7 +47,8 @@ router.post("/register", (req, res) => {
   );
 });
 
-/* LOGIN */
+/* ================= LOGIN ================= */
+
 router.post("/login", (req, res) => {
   const { college_id, password } = req.body;
 
@@ -49,6 +62,7 @@ router.post("/login", (req, res) => {
 
       const user = rows[0];
       const match = await bcrypt.compare(password, user.password);
+
       if (!match)
         return res.status(401).json({ msg: "Invalid credentials" });
 
@@ -75,59 +89,90 @@ router.post("/login", (req, res) => {
   );
 });
 
-/* SEND OTP */
-router.post("/send-otp", (req, res) => {
+/* ================= SEND OTP ================= */
+
+router.post("/send-otp", async (req, res) => {
   const { college_id } = req.body;
 
   if (!college_id)
-    return res.status(400).json("College ID required");
-
-  const otp = Math.floor(100000 + Math.random() * 900000);
-  const expiry = new Date(Date.now() + 5 * 60000); // 5 mins
-
-  db.query(
-    "UPDATE users SET reset_otp=?, otp_expiry=? WHERE college_id=?",
-    [otp, expiry, college_id],
-    (err, result) => {
-      if (err) return res.status(500).json(err);
-      if (result.affectedRows === 0)
-        return res.status(404).json("User not found");
-
-      console.log("OTP:", otp); // TEMP (email later)
-
-      res.json("OTP sent (check backend console)");
-    }
-  );
-});
-
-/* RESET PASSWORD */
-router.post("/reset-password", async (req, res) => {
-  const { college_id, otp, newPassword } = req.body;
+    return res.status(400).json({ msg: "College ID required" });
 
   db.query(
     "SELECT * FROM users WHERE college_id=?",
     [college_id],
     async (err, rows) => {
-      if (err) return res.status(500).json(err);
+      if (err) return res.status(500).json({ msg: "DB error" });
       if (rows.length === 0)
-        return res.status(404).json("User not found");
+        return res.status(404).json({ msg: "User not found" });
 
       const user = rows[0];
 
-      if (
-        user.reset_otp !== otp ||
-        new Date(user.otp_expiry) < new Date()
-      )
-        return res.status(400).json("Invalid or expired OTP");
+      const otp = Math.floor(100000 + Math.random() * 900000);
+      const hashOtp = await bcrypt.hash(otp.toString(), 10);
+      const expiry = new Date(Date.now() + 10 * 60000); // 10 min
+
+      db.query(
+        "UPDATE users SET reset_otp=?, otp_expiry=? WHERE id=?",
+        [hashOtp, expiry, user.id],
+        async (err) => {
+          if (err) return res.status(500).json({ msg: "DB error" });
+
+          /* SEND EMAIL */
+          await transporter.sendMail({
+            to: user.email,
+            subject: "HostelFix Password Reset OTP",
+            html: `
+              <h3>Password Reset</h3>
+              <p>Your OTP:</p>
+              <h2>${otp}</h2>
+              <p>Valid for 10 minutes</p>
+            `
+          });
+
+          res.json({ msg: "OTP sent to registered email" });
+        }
+      );
+    }
+  );
+});
+
+/* ================= RESET PASSWORD ================= */
+
+router.post("/reset-password", async (req, res) => {
+  const { college_id, otp, newPassword } = req.body;
+
+  if (!college_id || !otp || !newPassword)
+    return res.status(400).json({ msg: "All fields required" });
+
+  db.query(
+    "SELECT * FROM users WHERE college_id=?",
+    [college_id],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ msg: "DB error" });
+      if (rows.length === 0)
+        return res.status(404).json({ msg: "User not found" });
+
+      const user = rows[0];
+
+      if (new Date() > new Date(user.otp_expiry))
+        return res.status(400).json({ msg: "OTP expired" });
+
+      const valid = await bcrypt.compare(
+        otp.toString(),
+        user.reset_otp
+      );
+
+      if (!valid)
+        return res.status(400).json({ msg: "Invalid OTP" });
 
       const hash = await bcrypt.hash(newPassword, 10);
 
       db.query(
         "UPDATE users SET password=?, reset_otp=NULL, otp_expiry=NULL WHERE id=?",
         [hash, user.id],
-        err => {
-          if (err) return res.status(500).json(err);
-          res.json("Password updated");
+        (err) => {
+          if (err) return res.status(500).json({ msg: "DB error" });
+          res.json({ msg: "Password updated successfully" });
         }
       );
     }

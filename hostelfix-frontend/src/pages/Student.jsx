@@ -11,6 +11,8 @@ export default function Student() {
   const [image,setImage]=useState(null);
 
   const [myComplaints,setMyComplaints]=useState([]);
+  const [roommates,setRoommates]=useState([]);
+
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("all");
   const [sort,setSort]=useState("new");
@@ -25,8 +27,14 @@ export default function Student() {
     setMyComplaints(res.data);
   };
 
+  const loadRoommates = async()=>{
+    const res = await api.get("/profile/roommates");
+    setRoommates(res.data);
+  };
+
   useEffect(()=>{
     loadMyComplaints();
+    loadRoommates();
   },[]);
 
   /* SUBMIT */
@@ -34,40 +42,59 @@ export default function Student() {
 
     if(!message.trim()) return;
 
-    const form=new FormData();
-    form.append("message",message);
-    form.append("priority",priority);
-    if(image) form.append("image",image);
+    try{
 
-    await api.post("/complaint/add",form,{
-      headers:{ "Content-Type":"multipart/form-data" }
-    });
+      const form=new FormData();
+      form.append("message",message);
+      form.append("priority",priority);
+      if(image) form.append("image",image);
 
-    setMessage("");
-    setPriority("normal");
-    setImage(null);
-    loadMyComplaints();
+      await api.post("/complaint/add",form,{
+        headers:{ "Content-Type":"multipart/form-data" }
+      });
+
+      setMessage("");
+      setPriority("normal");
+      setImage(null);
+      loadMyComplaints();
+
+    }catch(err){
+      alert(
+        err.response?.data ||
+        "Something went wrong"
+      );
+    }
   };
 
   /* DELETE */
   const deleteComplaint = async(id)=>{
     if(!window.confirm("Delete complaint?")) return;
-    await api.delete(`/complaint/${id}`);
-    loadMyComplaints();
+
+    try{
+      await api.delete(`/complaint/${id}`);
+      loadMyComplaints();
+    }catch(e){
+      alert(e.response?.data);
+    }
   };
 
   /* UPDATE */
   const updateComplaint = async()=>{
-    await api.put(`/complaint/${edit.id}`,{
-      message:edit.message
-    });
-    setEdit(null);
-    loadMyComplaints();
+    try{
+      await api.put(`/complaint/${edit.id}`,{
+        message:edit.message
+      });
+      setEdit(null);
+      loadMyComplaints();
+    }catch(e){
+      alert(e.response?.data);
+    }
   };
 
   /* RESOLVE */
   const markResolved = async(id)=>{
     if(!window.confirm("Mark as resolved?")) return;
+
     await api.put(`/complaint/update/${id}`,{
       status:"approved"
     });
@@ -118,6 +145,21 @@ export default function Student() {
       <div className="main">
 
         <h2>🎓 Student Dashboard</h2>
+
+        {/* ROOMMATES */}
+        <div className="card">
+          <h3>🏠 Roommates</h3>
+
+          {roommates.length===0 && (
+            <p>No roommates</p>
+          )}
+
+          {roommates.map((r,i)=>(
+            <p key={i}>
+              {r.name} | {r.dept} | Year {r.year}
+            </p>
+          ))}
+        </div>
 
         {/* SUBMIT */}
         <div className="card">

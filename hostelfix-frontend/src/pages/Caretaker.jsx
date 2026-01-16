@@ -13,13 +13,16 @@ export default function Caretaker(){
   const [auto,setAuto]=useState(false);
   const [preview,setPreview]=useState(null);
 
+  const [emptyRooms,setEmptyRooms]=useState([]);
+  const [roomNo,setRoomNo]=useState("");
+  const [roomMembers,setRoomMembers]=useState([]);
+
   const perPage=3;
 
-  /* LOAD DATA */
+  /* LOAD COMPLAINTS */
   const fetchData = async()=>{
     const res = await api.get("/complaint/pending");
 
-    // urgent first
     const sorted = res.data.sort((a,b)=>{
       if(a.priority==="urgent") return -1;
       if(b.priority==="urgent") return 1;
@@ -29,8 +32,26 @@ export default function Caretaker(){
     setList(sorted);
   };
 
+  /* LOAD EMPTY ROOMS */
+  const loadEmptyRooms = async()=>{
+    const res = await api.get(
+      "/dashboard/caretaker/empty-rooms"
+    );
+    setEmptyRooms(res.data);
+  };
+
+  /* ROOM MEMBERS */
+  const loadRoomMembers = async()=>{
+    if(!roomNo) return;
+    const res = await api.get(
+      `/dashboard/caretaker/room/${roomNo}`
+    );
+    setRoomMembers(res.data);
+  };
+
   useEffect(()=>{
     fetchData();
+    loadEmptyRooms();
   },[page]);
 
   /* AUTO REFRESH */
@@ -44,13 +65,17 @@ export default function Caretaker(){
 
     if(!window.confirm(`Are you sure?`)) return;
 
-    await api.put(`/complaint/update/${id}`,{
-      status,
-      comment
-    });
+    try{
+      await api.put(`/complaint/update/${id}`,{
+        status,
+        comment
+      });
 
-    setComment("");
-    fetchData();
+      setComment("");
+      fetchData();
+    }catch(e){
+      alert(e.response?.data);
+    }
   };
 
   /* FILTER */
@@ -91,6 +116,44 @@ Auto refresh
 
 <br/>
 
+{/* EMPTY ROOMS */}
+<div className="card">
+<h3>🏠 Empty Rooms</h3>
+
+{emptyRooms.length===0 && (
+  <p>No empty rooms</p>
+)}
+
+{emptyRooms.map((r,i)=>(
+  <p key={i}>
+    Room {r.room_no} → 
+    {r.capacity - r.members} slots free
+  </p>
+))}
+</div>
+
+{/* ROOM MEMBERS */}
+<div className="card">
+<h3>🔍 Room Members</h3>
+
+<input
+ placeholder="Enter room number"
+ value={roomNo}
+ onChange={e=>setRoomNo(e.target.value)}
+/>
+
+<button onClick={loadRoomMembers}>
+Search
+</button>
+
+{roomMembers.map((m,i)=>(
+  <p key={i}>
+    {m.name} | {m.dept} | Year {m.year}
+  </p>
+))}
+</div>
+
+{/* COMPLAINTS */}
         {current.map(c=>(
 
           <div key={c.id} className="card">
