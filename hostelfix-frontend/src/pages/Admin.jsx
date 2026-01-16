@@ -6,7 +6,6 @@ import { toast } from "react-toastify";
 
 import { PieChart, Pie, Tooltip } from "recharts";
 import jsPDF from "jspdf";
-import AdminComplaints from "./AdminComplaints";
 
 export default function Admin(){
 
@@ -38,11 +37,9 @@ export default function Admin(){
         api.get("/admin/caretakers"),
         api.get("/admin/mapping")
       ]);
-
       setUsers(u.data);
       setCaretakers(ct.data);
       setMap(m.data);
-
     }catch{
       toast.error("Load failed");
     }
@@ -85,19 +82,23 @@ export default function Admin(){
 
   const createUser=()=>{
     if(!newUser.college_id || !newUser.password || !newUser.name){
-      toast.error("Required fields missing");
-      return;
+      toast.error("Required fields missing"); return;
     }
 
     api.post("/admin/create-user",newUser)
       .then(()=>{
         toast.success("User created");
         setNewUser({
-          college_id:"",password:"",
-          role:"student",hostel:"BOYS HOSTEL",
-          name:"",mobile:"",
-          dept:"",year:"",
-          room_no:"",email:""
+          college_id:"",
+          password:"",
+          role:"student",
+          hostel:"BOYS HOSTEL",
+          name:"",
+          mobile:"",
+          dept:"",
+          year:"",
+          room_no:"",
+          email:""
         });
         load();
       })
@@ -107,15 +108,12 @@ export default function Admin(){
   const resetPwd=id=>{
     const pwd = prompt("Enter new password");
     if(!pwd) return;
-
-    api.put(`/admin/reset-password/${id}`,{
-      newPassword:pwd
-    }).then(()=>toast.success("Password reset"));
+    api.put(`/admin/reset-password/${id}`,{ newPassword:pwd })
+      .then(()=>toast.success("Password reset"));
   };
 
   const deleteUser=id=>{
     if(!window.confirm("Delete user?")) return;
-
     api.delete(`/admin/user/${id}`)
       .then(()=>{ toast.success("Deleted"); load(); });
   };
@@ -144,7 +142,7 @@ export default function Admin(){
 
 {/* TABS */}
 <div style={{display:"flex",gap:10,marginBottom:20}}>
-{["assign","add","map","manage","complaints"].map(t=>(
+{["assign","add","map","manage"].map(t=>(
 <button
  key={t}
  onClick={()=>setTab(t)}
@@ -188,7 +186,6 @@ export default function Admin(){
  onChange={e=>assign(s.college_id,e.target.value)}
 >
 <option value="">Not assigned</option>
-
 {caretakers
 .filter(c=>c.hostel===s.hostel)
 .map(c=>(
@@ -218,21 +215,17 @@ Remove
 <div className="card">
 <h3>Add User</h3>
 
-<input
- placeholder="Name"
+<input placeholder="Name"
  value={newUser.name}
  onChange={e=>setNewUser({...newUser,name:e.target.value})}
 />
 
-<input
- placeholder="College ID"
+<input placeholder="College ID"
  value={newUser.college_id}
  onChange={e=>setNewUser({...newUser,college_id:e.target.value})}
 />
 
-<input
- type="password"
- placeholder="Password"
+<input type="password" placeholder="Password"
  value={newUser.password}
  onChange={e=>setNewUser({...newUser,password:e.target.value})}
 />
@@ -292,11 +285,6 @@ Delete
 </div>
 ))}
 </div>
-)}
-
-{/* COMPLAINTS */}
-{tab==="complaints" && (
- <AdminComplaints/>
 )}
 
    </div>

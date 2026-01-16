@@ -2,6 +2,8 @@ const express = require("express");
 const db = require("../config/db");
 const auth = require("../middleware/auth");
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
 const router = express.Router();
 
@@ -38,7 +40,9 @@ router.post("/add",
     const student = req.user.college_id;
     const image = req.file?.filename || null;
 
-    // STEP 1 – get assigned caretaker
+    if(!message)
+      return res.status(400).json("Message required");
+
     db.query(
       "SELECT assigned_caretaker,hostel FROM users WHERE college_id=?",
       [student],
@@ -49,7 +53,6 @@ router.post("/add",
 
         let caretaker = u[0].assigned_caretaker;
 
-        // STEP 2 – fallback if not assigned
         if(!caretaker){
           db.query(
             "SELECT college_id FROM users WHERE role='caretaker' AND hostel=? LIMIT 1",
@@ -76,7 +79,7 @@ router.post("/add",
               student,
               message,
               "pending",
-              priority,
+              priority || "normal",
               image,
               caretaker
             ],
@@ -113,6 +116,43 @@ router.get("/my",
   }
 );
 
+/* STUDENT DELETE */
+router.delete("/:id",
+  auth(["student"]),
+  (req,res)=>{
+
+    const student=req.user.college_id;
+
+    db.query(
+      "SELECT image FROM complaints WHERE id=? AND student_id=?",
+      [req.params.id,student],
+      (err,row)=>{
+        if(err) return res.status(500).json(err);
+        if(!row.length)
+          return res.status(404).json("Not found");
+
+        const image=row[0].image;
+
+        if(image){
+          const filePath=path.join(
+            __dirname,"..","uploads",image
+          );
+          fs.unlink(filePath,()=>{});
+        }
+
+        db.query(
+          "DELETE FROM complaints WHERE id=?",
+          [req.params.id],
+          err=>{
+            if(err) return res.status(500).json(err);
+            res.json("Deleted");
+          }
+        );
+      }
+    );
+  }
+);
+
 /* CARETAKER VIEW */
 router.get("/pending",
   auth(["caretaker"]),
@@ -129,33 +169,62 @@ router.get("/pending",
   }
 );
 
-/* CARETAKER UPDATE */
+/* CARETAKER UPDATE + LOG */
 router.put("/update/:id",
   auth(["caretaker"]),
   (req,res)=>{
 
     const {status,comment}=req.body;
+    const caretaker=req.user.college_id;
+
+    if(!status)
+      return res.status(400).json("Status required");
 
     db.query(
-      "UPDATE complaints SET status=? WHERE id=?",
-      [status,req.params.id],
-      err=>{
+      "SELECT status FROM complaints WHERE id=? AND assigned_to=?",
+      [req.params.id,caretaker],
+      (err,row)=>{
         if(err) return res.status(500).json(err);
+        if(!row.length)
+          return res.status(403).json("Not allowed");
 
-        if(comment){
-          db.query(
-            `INSERT INTO complaint_comments
-             (complaint_id,caretaker_id,message)
-             VALUES (?,?,?)`,
-            [
-              req.params.id,
-              req.user.college_id,
-              comment
-            ]
-          );
-        }
+        const oldStatus=row[0].status;
 
-        res.json("Updated");
+        db.query(
+          "UPDATE complaints SET status=? WHERE id=?",
+          [status,req.params.id],
+          err=>{
+            if(err) return res.status(500).json(err);
+
+            /* LOG */
+            db.query(
+              `INSERT INTO complaint_logs
+               (complaint_id,old_status,new_status,changed_by)
+               VALUES (?,?,?,?)`,
+              [
+                req.params.id,
+                oldStatus,
+                status,
+                caretaker
+              ]
+            );
+
+            if(comment){
+              db.query(
+                `INSERT INTO complaint_comments
+                 (complaint_id,caretaker_id,message)
+                 VALUES (?,?,?)`,
+                [
+                  req.params.id,
+                  caretaker,
+                  comment
+                ]
+              );
+            }
+
+            res.json("Updated");
+          }
+        );
       }
     );
   }

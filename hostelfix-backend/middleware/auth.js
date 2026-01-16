@@ -2,37 +2,29 @@ const jwt = require("jsonwebtoken");
 
 module.exports = (roles = []) => {
 
-  return (req, res, next) => {
+ return (req, res, next) => {
 
-    const token = req.header("Authorization");
+  const token = req.headers.authorization;
 
-    if (!token) {
-      return res.status(401).json({
-        message: "No token, access denied"
-      });
-    }
+  if (!token)
+   return res.status(401).json("No token");
 
-    try {
+  try {
 
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET
-      );
+   const decoded = jwt.verify(
+     token,
+     process.env.JWT_SECRET
+   );
 
-      req.user = decoded;
+   if (roles.length && !roles.includes(decoded.role))
+     return res.status(403).json("Forbidden");
 
-      if (roles.length && !roles.includes(decoded.role)) {
-        return res.status(403).json({
-          message: "Access forbidden"
-        });
-      }
+   req.user = decoded;
+   next();
 
-      next();
+  } catch {
+   res.status(401).json("Invalid token");
+  }
 
-    } catch (err) {
-      return res.status(401).json({
-        message: "Invalid token"
-      });
-    }
-  };
+ };
 };

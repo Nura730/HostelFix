@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import jsPDF from "jspdf";
 
 export default function Student() {
 
@@ -12,18 +13,23 @@ export default function Student() {
   const [myComplaints,setMyComplaints]=useState([]);
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState("all");
+  const [sort,setSort]=useState("new");
   const [edit,setEdit]=useState(null);
   const [open,setOpen]=useState(false);
 
-  useEffect(()=>{
-    loadMyComplaints();
-  },[]);
+  const maxChars=300;
 
+  /* LOAD */
   const loadMyComplaints = async()=>{
     const res = await api.get("/complaint/my");
     setMyComplaints(res.data);
   };
 
+  useEffect(()=>{
+    loadMyComplaints();
+  },[]);
+
+  /* SUBMIT */
   const submitComplaint = async()=>{
 
     if(!message.trim()) return;
@@ -43,12 +49,14 @@ export default function Student() {
     loadMyComplaints();
   };
 
+  /* DELETE */
   const deleteComplaint = async(id)=>{
     if(!window.confirm("Delete complaint?")) return;
     await api.delete(`/complaint/${id}`);
     loadMyComplaints();
   };
 
+  /* UPDATE */
   const updateComplaint = async()=>{
     await api.put(`/complaint/${edit.id}`,{
       message:edit.message
@@ -57,7 +65,28 @@ export default function Student() {
     loadMyComplaints();
   };
 
-  const filtered = myComplaints.filter(c=>{
+  /* RESOLVE */
+  const markResolved = async(id)=>{
+    if(!window.confirm("Mark as resolved?")) return;
+    await api.put(`/complaint/update/${id}`,{
+      status:"approved"
+    });
+    loadMyComplaints();
+  };
+
+  /* PDF */
+  const downloadPDF = c =>{
+    const doc=new jsPDF();
+    doc.text(`Complaint ID: ${c.id}`,10,10);
+    doc.text(`Message: ${c.message}`,10,20);
+    doc.text(`Status: ${c.status}`,10,30);
+    doc.text(`Priority: ${c.priority}`,10,40);
+    doc.save(`complaint_${c.id}.pdf`);
+  };
+
+  /* FILTER */
+  const filtered = myComplaints
+  .filter(c=>{
     const matchText=c.message
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -66,6 +95,11 @@ export default function Student() {
       filter==="all" ? true : c.status===filter;
 
     return matchText && matchStatus;
+  })
+  .sort((a,b)=>{
+    if(sort==="new")
+      return new Date(b.created_at)-new Date(a.created_at);
+    return new Date(a.created_at)-new Date(b.created_at);
   });
 
   const daysPassed = date=>{
@@ -92,10 +126,15 @@ export default function Student() {
 
           <textarea
             value={message}
+            maxLength={maxChars}
             onChange={e=>setMessage(e.target.value)}
             rows="4"
             placeholder="Describe your issue..."
           />
+
+          <small>
+            {message.length}/{maxChars} characters
+          </small>
 
           <select
             value={priority}
@@ -118,6 +157,7 @@ export default function Student() {
 
         {/* FILTER */}
         <div style={{display:"flex",gap:10}}>
+
           <input
             placeholder="Search..."
             value={search}
@@ -133,6 +173,15 @@ export default function Student() {
             <option value="rejected">Rejected</option>
             <option value="pending">Pending</option>
           </select>
+
+          <select
+            value={sort}
+            onChange={e=>setSort(e.target.value)}
+          >
+            <option value="new">Newest</option>
+            <option value="old">Oldest</option>
+          </select>
+
         </div>
 
         <br/>
@@ -203,6 +252,27 @@ export default function Student() {
                 >
                   Delete
                 </button>
+
+                <button
+                  onClick={()=>markResolved(c.id)}
+                  style={{
+                    background:"#22c55e",
+                    marginLeft:10
+                  }}
+                >
+                  Mark Resolved
+                </button>
+
+                <button
+                  onClick={()=>downloadPDF(c)}
+                  style={{
+                    background:"#0ea5e9",
+                    marginLeft:10
+                  }}
+                >
+                  Download PDF
+                </button>
+
               </div>
             </div>
           );
