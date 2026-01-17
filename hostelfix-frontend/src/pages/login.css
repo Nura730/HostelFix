@@ -1,45 +1,187 @@
-.login-bg{
-  height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:
-  radial-gradient(circle at top,#1e1b4b,#020617);
+.loginWrap{
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ height:100vh;
+ background:
+  linear-gradient(135deg,#020617,#1e1b4b);
 }
 
-.login-card{
-  width:340px;
-  padding:35px;
-  border-radius:22px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,.15);
-  text-align:center;
-  box-shadow:0 30px 60px rgba(0,0,0,.6);
+/* REMOVE LEFT PANEL EFFECT */
+.loginLeft{
+ display:none;
 }
 
+.loginLeft h1{
+ font-size:60px;
+ color:#ff00e8;
+ text-shadow:0 0 40px #ff00e8;
+}
+
+.loginLeft p{
+ opacity:.7;
+}
+
+/* RIGHT */
+.loginCard{
+ width:380px;
+ background:rgba(255,255,255,.08);
+ backdrop-filter:blur(30px);
+ padding:30px;
+ border-radius:28px;
+ box-shadow:0 0 60px #000;
+ animation:float 4s ease infinite;
+}
+
+
+/* LOGO */
+.logoRow{
+ display:flex;
+ gap:10px;
+ align-items:center;
+ justify-content:center;
+ margin-bottom:20px;
+}
+
+.logoRow svg{
+ color:#ff00e8;
+ font-size:26px;
+}
+
+/* INPUT */
+.loginCard input{
+ width:100%;
+ padding:14px;
+ border:none;
+ border-radius:14px;
+ background:rgba(255,255,255,.1);
+ color:white;
+ margin-bottom:14px;
+}
+
+.loginCard input:focus{
+ outline:2px solid #ff00e8;
+ animation:bounce .3s;
+}
+
+/* PASSWORD */
+.passWrap{
+ position:relative;
+}
+
+.passWrap svg{
+ position:absolute;
+ right:12px;
+ top:14px;
+ cursor:pointer;
+ color:#ff00e8;
+}
+
+/* BUTTON */
+.loginCard button{
+ width:100%;
+ background:#ff00e8;
+ color:black;
+ padding:12px;
+ border:none;
+ border-radius:18px;
+ font-weight:bold;
+}
+
+/* EXTRAS */
+.extras{
+ margin-top:16px;
+ text-align:center;
+}
+
+.forgot{
+ cursor:pointer;
+ color:#a78bfa;
+}
+
+.roles{
+ display:flex;
+ justify-content:center;
+ gap:10px;
+ margin-top:10px;
+}
+
+.roles span{
+ background:rgba(255,255,255,.1);
+ padding:4px 10px;
+ border-radius:999px;
+ font-size:12px;
+}
+
+/* ANIM */
+@keyframes float{
+ 0%,100%{transform:translateY(0)}
+ 50%{transform:translateY(-6px)}
+}
+
+@keyframes bounce{
+ 0%{transform:scale(1)}
+ 50%{transform:scale(1.05)}
+ 100%{transform:scale(1)}
+}
+
+/* SHAKE */
+.shake{
+ animation:shake .3s;
+}
+
+@keyframes shake{
+ 0%{transform:translateX(0)}
+ 25%{transform:translateX(-5px)}
+ 50%{transform:translateX(5px)}
+ 75%{transform:translateX(-5px)}
+ 100%{transform:translateX(0)}
+}
+
+/* MOBILE */
+@media(max-width:768px){
+ .loginWrap{
+  flex-direction:column;
+ }
+ .loginLeft{
+  display:none;
+ }
+}
+.particles{
+ position:fixed;
+ inset:0;
+ overflow:hidden;
+ z-index:-1;
+}
+
+.particles span{
+ position:absolute;
+ width:6px;
+ height:6px;
+ background:#ff00e8;
+ border-radius:50%;
+ animation:float 10s linear infinite;
+ opacity:.5;
+}
+.loginCard{
+ transition:transform .2s;
+}
+
+.loginCard:hover{
+ transform:rotateX(5deg) rotateY(-5deg);
+}
 .logo{
-  font-size:28px;
-  letter-spacing:1px;
+ animation:pop .8s ease;
 }
 
-.tagline{
-  font-size:13px;
-  opacity:.7;
-  margin-bottom:20px;
+@keyframes pop{
+ from{transform:scale(0);opacity:0}
+ to{transform:scale(1);opacity:1}
+}
+.loginCard.success{
+ animation:zoomOut .8s ease forwards;
 }
 
-.login-card input{
-  margin-bottom:12px;
-}
-
-.login-card button{
-  width:100%;
-  margin-top:10px;
-}
-
-.note{
-  display:block;
-  margin-top:15px;
-  opacity:.6;
+@keyframes zoomOut{
+ to{transform:scale(1.2);opacity:0}
 }

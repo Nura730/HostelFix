@@ -1,23 +1,34 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
+import {
+  FaSearch,
+  FaHome,
+  FaUsers,
+  FaTools,
+  FaCheck,
+  FaTimes,
+  FaImage,
+  FaPlay,
+  FaFlag
+} from "react-icons/fa";
 
 export default function Caretaker(){
 
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const [tab,setTab]=useState("complaints");
+
   const [list,setList]=useState([]);
-  const [page,setPage]=useState(1);
-  const [open,setOpen]=useState(false);
-  const [comment,setComment]=useState("");
   const [search,setSearch]=useState("");
   const [auto,setAuto]=useState(false);
+
+  const [comment,setComment]=useState("");
   const [preview,setPreview]=useState(null);
 
   const [emptyRooms,setEmptyRooms]=useState([]);
   const [roomNo,setRoomNo]=useState("");
   const [roomMembers,setRoomMembers]=useState([]);
-
-  const perPage=3;
 
   /* LOAD COMPLAINTS */
   const fetchData = async()=>{
@@ -32,8 +43,8 @@ export default function Caretaker(){
     setList(sorted);
   };
 
-  /* LOAD EMPTY ROOMS */
-  const loadEmptyRooms = async()=>{
+  /* LOAD ROOMS */
+  const loadRooms = async()=>{
     const res = await api.get(
       "/dashboard/caretaker/empty-rooms"
     );
@@ -51,8 +62,8 @@ export default function Caretaker(){
 
   useEffect(()=>{
     fetchData();
-    loadEmptyRooms();
-  },[page]);
+    loadRooms();
+  },[]);
 
   /* AUTO REFRESH */
   useEffect(()=>{
@@ -61,21 +72,17 @@ export default function Caretaker(){
     return ()=>clearInterval(t);
   },[auto]);
 
+  /* STATUS UPDATE */
   const updateStatus = async(id,status)=>{
+    if(!window.confirm("Confirm action?")) return;
 
-    if(!window.confirm(`Are you sure?`)) return;
+    await api.put(`/complaint/update/${id}`,{
+      status,
+      comment
+    });
 
-    try{
-      await api.put(`/complaint/update/${id}`,{
-        status,
-        comment
-      });
-
-      setComment("");
-      fetchData();
-    }catch(e){
-      alert(e.response?.data);
-    }
+    setComment("");
+    fetchData();
   };
 
   /* FILTER */
@@ -84,187 +91,269 @@ export default function Caretaker(){
       .includes(search.toLowerCase())
   );
 
-  const start=(page-1)*perPage;
-  const current=filtered.slice(start,start+perPage);
-
   return(
     <>
-      <Navbar toggleSidebar={()=>setOpen(!open)} />
-      <Sidebar open={open} />
+      <Navbar/>
 
       <div className="main">
 
+        {/* HEADER */}
         <h2>🛠 Caretaker Dashboard</h2>
 
-{/* TOOLS */}
-<div style={{display:"flex",gap:10}}>
-<input
- placeholder="Search student..."
- value={search}
- onChange={e=>setSearch(e.target.value)}
-/>
+        {/* TABS */}
+        <div className="adminTabs">
 
-<label style={{display:"flex",alignItems:"center",gap:6}}>
-<input
- type="checkbox"
- checked={auto}
- onChange={()=>setAuto(!auto)}
-/>
-Auto refresh
-</label>
-</div>
+          <button
+            className={`tabBtn ${tab==="complaints"?"active":""}`}
+            onClick={()=>setTab("complaints")}
+          >
+            Complaints
+          </button>
 
-<br/>
+          <button
+            className={`tabBtn ${tab==="rooms"?"active":""}`}
+            onClick={()=>setTab("rooms")}
+          >
+            Rooms
+          </button>
 
-{/* EMPTY ROOMS */}
-<div className="card">
-<h3>🏠 Empty Rooms</h3>
+          <button
+            className={`tabBtn ${tab==="members"?"active":""}`}
+            onClick={()=>setTab("members")}
+          >
+            Members
+          </button>
 
-{emptyRooms.length===0 && (
-  <p>No empty rooms</p>
-)}
+          <button
+            className={`tabBtn ${tab==="profile"?"active":""}`}
+            onClick={()=>setTab("profile")}
+          >
+            Profile
+          </button>
 
-{emptyRooms.map((r,i)=>(
-  <p key={i}>
-    Room {r.room_no} → 
-    {r.capacity - r.members} slots free
-  </p>
-))}
-</div>
+        </div>
 
-{/* ROOM MEMBERS */}
-<div className="card">
-<h3>🔍 Room Members</h3>
+        {/* ================= COMPLAINTS ================= */}
+        {tab==="complaints" && (
+        <>
+          {/* SEARCH + AUTO */}
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
 
-<input
- placeholder="Enter room number"
- value={roomNo}
- onChange={e=>setRoomNo(e.target.value)}
-/>
-
-<button onClick={loadRoomMembers}>
-Search
-</button>
-
-{roomMembers.map((m,i)=>(
-  <p key={i}>
-    {m.name} | {m.dept} | Year {m.year}
-  </p>
-))}
-</div>
-
-{/* COMPLAINTS */}
-        {current.map(c=>(
-
-          <div key={c.id} className="card">
-
-<div style={{display:"flex",justifyContent:"space-between"}}>
-<h4>👤 {c.student_id}</h4>
-
-<span
- style={{
-  padding:"4px 10px",
-  borderRadius:10,
-  background:
-   c.priority==="urgent"?"#ef4444":"#22c55e"
- }}
->
-{c.priority}
-</span>
-</div>
-
-            <p style={{margin:"10px 0"}}>
-              {c.message}
-            </p>
-
-            {/* IMAGE */}
-            {c.image && (
-              <img
-                src={`http://localhost:5000/uploads/${c.image}`}
-                width="100%"
-                style={{borderRadius:14,marginBottom:10,cursor:"pointer"}}
-                onClick={()=>setPreview(c.image)}
+            <div style={{flex:1,position:"relative"}}>
+              <FaSearch style={{
+                position:"absolute",left:12,top:12,opacity:.6
+              }}/>
+              <input
+                style={{paddingLeft:36}}
+                placeholder="Search student..."
+                value={search}
+                onChange={e=>setSearch(e.target.value)}
               />
-            )}
-
-            {/* COMMENT */}
-            <textarea
-              placeholder="Write your comment..."
-              value={comment}
-              onChange={e=>setComment(e.target.value)}
-            />
-
-            <div style={{
-              display:"flex",
-              gap:10,
-              marginTop:10
-            }}>
-              <button
-                onClick={()=>updateStatus(c.id,"approved")}
-                style={{background:"#22c55e"}}
-              >
-                Approve
-              </button>
-
-              <button
-                onClick={()=>updateStatus(c.id,"rejected")}
-                style={{background:"#ef4444"}}
-              >
-                Reject
-              </button>
             </div>
+
+            <label style={{display:"flex",gap:6}}>
+              <input
+                type="checkbox"
+                checked={auto}
+                onChange={()=>setAuto(!auto)}
+              />
+              Auto refresh
+            </label>
 
           </div>
 
-        ))}
+          <br/>
 
-{/* PAGINATION */}
-<div style={{
- marginTop:20,
- display:"flex",
- alignItems:"center",
- gap:10
-}}>
+          {/* LIST */}
+          {filtered.map(c=>(
+            <div key={c.id} className="card">
 
-<button
- disabled={page===1}
- onClick={()=>setPage(p=>p-1)}
->
-Prev
-</button>
+              <div style={{
+                display:"flex",
+                justifyContent:"space-between",
+                alignItems:"center"
+              }}>
+                <h4>👤 {c.student_id}</h4>
 
-<span>Page {page}</span>
+                <span className={`status-${c.status}`}>
+                  {c.status.replace("_"," ").toUpperCase()}
+                </span>
+              </div>
 
-<button
- disabled={start+perPage>=filtered.length}
- onClick={()=>setPage(p=>p+1)}
->
-Next
-</button>
+              <p style={{margin:"10px 0"}}>
+                {c.message}
+              </p>
 
-</div>
+              {/* IMAGE */}
+              {c.image && (
+                <button
+                  className="glassBtn"
+                  onClick={()=>setPreview(c.image)}
+                >
+                  <FaImage/> View Image
+                </button>
+              )}
 
-{/* IMAGE PREVIEW */}
-{preview && (
-<div
- style={{
-  position:"fixed",
-  inset:0,
-  background:"rgba(0,0,0,.7)",
-  display:"flex",
-  justifyContent:"center",
-  alignItems:"center"
- }}
- onClick={()=>setPreview(null)}
->
+              {/* COMMENT */}
+              <textarea
+                placeholder="Write comment..."
+                value={comment}
+                onChange={e=>setComment(e.target.value)}
+              />
 
-<img
- src={`http://localhost:5000/uploads/${preview}`}
- style={{maxWidth:"80%",borderRadius:16}}
-/>
+              {/* ACTIONS */}
+              <div style={{
+                display:"flex",
+                gap:10,
+                marginTop:10,
+                flexWrap:"wrap"
+              }}>
 
-</div>
-)}
+                {/* PENDING → IN PROGRESS */}
+                {c.status==="pending" && (
+                  <button
+                    onClick={()=>updateStatus(c.id,"in_progress")}
+                    style={{background:"#facc15"}}
+                  >
+                    <FaPlay/> Start Work
+                  </button>
+                )}
+
+                {/* IN PROGRESS → COMPLETED */}
+                {c.status==="in_progress" && (
+                  <button
+                    onClick={()=>updateStatus(c.id,"completed")}
+                    style={{background:"#3b82f6"}}
+                  >
+                    <FaFlag/> Mark Completed
+                  </button>
+                )}
+
+                {/* COMPLETED → RESOLVED */}
+                {c.status==="completed" && (
+                  <button
+                    onClick={()=>updateStatus(c.id,"resolved")}
+                    style={{background:"#22c55e"}}
+                  >
+                    <FaCheck/> Resolve
+                  </button>
+                )}
+
+                {/* REJECT (ANY TIME EXCEPT RESOLVED) */}
+                {c.status!=="resolved" && (
+                  <button
+                    onClick={()=>updateStatus(c.id,"rejected")}
+                    style={{background:"#ef4444"}}
+                  >
+                    <FaTimes/> Reject
+                  </button>
+                )}
+
+              </div>
+
+            </div>
+          ))}
+
+          {filtered.length===0 && (
+            <p className="empty">No complaints</p>
+          )}
+        </>
+        )}
+
+        {/* ================= ROOMS ================= */}
+        {tab==="rooms" && (
+          <div className="card">
+            <h3><FaHome/> Room Status</h3>
+
+            {emptyRooms.length===0 && (
+              <p>No data</p>
+            )}
+
+            {emptyRooms.map((r,i)=>(
+              <p key={i}>
+                Room {r.room_no} → 
+                <b> {r.capacity-r.members} free</b>
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* ================= MEMBERS ================= */}
+        {tab==="members" && (
+          <div className="card">
+            <h3><FaUsers/> Room Members</h3>
+
+            <input
+              placeholder="Enter room number"
+              value={roomNo}
+              onChange={e=>setRoomNo(e.target.value)}
+            />
+
+            <button onClick={loadRoomMembers}>
+              Search
+            </button>
+
+            {roomMembers.map((m,i)=>(
+              <p key={i}>
+                {m.name} | {m.dept} | Year {m.year}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* ================= PROFILE ================= */}
+        {tab==="profile" && (
+          <div className="profileCard">
+
+            <div className="profileTop">
+              <div className="avatarBig">
+                {user?.name?.charAt(0)}
+              </div>
+
+              <div>
+                <h3>{user?.name}</h3>
+                <p>{user?.college_id}</p>
+              </div>
+            </div>
+
+            <div className="profileGrid">
+              <div>
+                <span>Role</span>
+                <p>{user?.role}</p>
+              </div>
+
+              <div>
+                <span>Hostel</span>
+                <p>{user?.hostel || "-"}</p>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* IMAGE MODAL */}
+        {preview && (
+          <div
+            style={{
+              position:"fixed",
+              inset:0,
+              background:"rgba(0,0,0,.7)",
+              display:"flex",
+              justifyContent:"center",
+              alignItems:"center",
+              zIndex:999
+            }}
+            onClick={()=>setPreview(null)}
+          >
+            <img
+              src={`http://localhost:5000/uploads/${preview}`}
+              style={{
+                maxWidth:"80%",
+                borderRadius:16
+              }}
+            />
+          </div>
+        )}
 
       </div>
     </>

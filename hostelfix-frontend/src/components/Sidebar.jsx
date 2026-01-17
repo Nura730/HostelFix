@@ -17,40 +17,47 @@ export default function Sidebar({ open }) {
   };
 
   return (
-    <div className={`sidebar glass ${open ? "show" : ""}`}>
+    <div className={`sidebar ${open?"show":""}`}>
 
       {/* LOGO */}
       <div className="sideLogo">
-        ⚡
+        <span>⚡</span>
+        <h3>HostelFix</h3>
       </div>
 
-      {/* LINKS */}
+      {/* DASHBOARD */}
       <NavLink to={`/${user.role}`} className="nav">
-        <FaHome className="icon"/>
+        <FaHome className="navIcon"/>
         <span>Dashboard</span>
       </NavLink>
 
+      {/* PROFILE */}
       <NavLink to="/profile" className="nav">
-        <FaUser className="icon"/>
+        <FaUser className="navIcon"/>
         <span>Profile</span>
       </NavLink>
 
+      {/* ADMIN */}
       {user.role==="admin" && (
         <NavLink to="/admin" className="nav">
-          <FaCog className="icon"/>
+          <FaCog className="navIcon"/>
           <span>Admin</span>
         </NavLink>
       )}
 
+      {/* CARETAKER */}
       {user.role==="caretaker" && (
         <NavLink to="/caretaker" className="nav">
-          <FaTools className="icon"/>
+          <FaTools className="navIcon"/>
           <span>Tasks</span>
         </NavLink>
       )}
 
       {/* LOGOUT */}
-      <button onClick={logout} className="logoutBtn neon">
+      <button
+        onClick={logout}
+        className="logoutBtn neon"
+      >
         <FaSignOutAlt/>
         <span>Logout</span>
       </button>

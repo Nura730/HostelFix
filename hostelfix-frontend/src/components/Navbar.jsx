@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBell, FaBars } from "react-icons/fa";
+import { FaBell } from "react-icons/fa";
 import api from "../api/api";
 
-export default function Navbar({ toggleSidebar }) {
+export default function Navbar() {
 
   const nav = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [list,setList]=useState([]);
   const [open,setOpen]=useState(false);
-  const [scrolled,setScrolled]=useState(false);
   const [profile,setProfile]=useState(null);
+  const [scrolled,setScrolled]=useState(false);
 
   if (!user) return null;
 
@@ -21,27 +21,23 @@ export default function Navbar({ toggleSidebar }) {
     nav("/");
   };
 
-  /* SCROLL BLUR */
+  /* SCROLL EFFECT */
   useEffect(()=>{
-    const onScroll=()=>{
-      setScrolled(window.scrollY>20);
-    };
-    window.addEventListener("scroll",onScroll);
-    return()=>window.removeEventListener("scroll",onScroll);
+    window.onscroll=()=>setScrolled(window.scrollY>20);
   },[]);
 
   /* LOAD PROFILE IMAGE */
-  const loadProfile = async()=>{
+  const loadProfile=async()=>{
     try{
-      const res = await api.get("/profile");
+      const res=await api.get("/profile");
       setProfile(res.data.image);
     }catch{}
   };
 
   /* LOAD NOTIFICATIONS */
-  const load = async()=>{
+  const load=async()=>{
     try{
-      const res = await api.get("/notifications");
+      const res=await api.get("/notifications");
       setList(res.data);
     }catch{}
   };
@@ -49,8 +45,6 @@ export default function Navbar({ toggleSidebar }) {
   useEffect(()=>{
     load();
     loadProfile();
-    const timer=setInterval(load,5000);
-    return ()=>clearInterval(timer);
   },[]);
 
   const unread = list.filter(n=>!n.is_read);
@@ -60,99 +54,79 @@ export default function Navbar({ toggleSidebar }) {
     load();
   };
 
+  const firstLetter = user.name
+    ? user.name.charAt(0).toUpperCase()
+    : user.college_id.charAt(0).toUpperCase();
+
   return (
     <div className={`navbar ${scrolled?"blur":""}`}>
 
-      {/* MOBILE MENU */}
-      <FaBars
-        className="menuBtn"
-        onClick={toggleSidebar}
-      />
-
-      {/* LOGO */}
+      {/* LEFT */}
       <div className="brand">
-        <span className="logoIcon">⚡</span>
+        <span className="brandIcon">⚡</span>
         <h3>HostelFix</h3>
       </div>
 
+      {/* CENTER */}
+      {user.role==="student" && (
+        <h4 style={{opacity:.8}}>
+          Hello, <span>{user.name || "Student"}</span>
+        </h4>
+      )}
+
+      {/* RIGHT */}
       <div className="navRight">
 
-        {/* NOTIFICATION */}
+        {/* NOTIFICATIONS */}
         <div className="notifyWrap">
-
           <FaBell
-            className="icon glow"
-            size={18}
+            className="icon"
             onClick={()=>setOpen(!open)}
           />
 
           {unread.length>0 && (
-            <span className="badge pulse">
-              {unread.length}
-            </span>
+            <span className="badge">{unread.length}</span>
           )}
 
           {open && (
-            <div className="notifyBox glass slideDown">
+            <div className="notifyBox slide">
+              <h4>Notifications</h4>
 
-              {list.length===0 && (
-                <p className="empty">No notifications</p>
-              )}
+              {list.length===0 && <p>No notifications</p>}
 
               {list.map(n=>(
                 <div
                   key={n.id}
-                  className={`notifyItem ${
-                    n.is_read?"read":""
-                  }`}
+                  className={`notifyItem ${n.is_read?"read":""}`}
                   onClick={()=>markRead(n.id)}
                 >
                   {n.message}
                 </div>
               ))}
-
             </div>
           )}
         </div>
 
-        {/* PROFILE */}
-        <div className="profileWrap">
-
-          <img
-            src={
-              profile
-              ? `http://localhost:5000/uploads/${profile}`
-              : "https://ui-avatars.com/api/?name="+user.college_id
-            }
-            className="avatar"
-          />
-
-          <div className="profileDrop">
-
-            <p className="name">
-              {user.college_id}
-            </p>
-
-            <span className="roleTag">
-              {user.role}
-            </span>
-
-            <button onClick={()=>nav("/profile")}>
-              View Profile
-            </button>
-
-            <button
-              className="danger"
-              onClick={logout}
-            >
-              Logout
-            </button>
-
-          </div>
+        {/* AVATAR */}
+        <div className="avatarWrap">
+          {profile ? (
+            <img
+              src={`http://localhost:5000/uploads/${profile}`}
+              className="avatar"
+            />
+          ) : (
+            <div className="avatar fallback">
+              {firstLetter}
+            </div>
+          )}
         </div>
 
-      </div>
+        {/* LOGOUT */}
+        <button onClick={logout} className="logoutSmall magnetic">
+          Logout
+        </button>
 
+      </div>
     </div>
   );
 }

@@ -1,10 +1,28 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
 import jsPDF from "jspdf";
 
+import {
+ FaClipboardList,
+ FaUsers,
+ FaUserCircle,
+ FaPlus,
+ FaTrash,
+ FaEdit,
+ FaFilePdf,
+ FaCheckCircle,
+ FaSearch,
+ FaFilter,
+ FaSort,
+ FaUpload
+} from "react-icons/fa";
+
 export default function Student() {
+
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const [tab,setTab]=useState("complaints");
 
   const [message,setMessage]=useState("");
   const [priority,setPriority]=useState("normal");
@@ -17,7 +35,7 @@ export default function Student() {
   const [filter,setFilter]=useState("all");
   const [sort,setSort]=useState("new");
   const [edit,setEdit]=useState(null);
-  const [open,setOpen]=useState(false);
+  const [profile,setProfile]=useState(null);
 
   const maxChars=300;
 
@@ -32,18 +50,22 @@ export default function Student() {
     setRoommates(res.data);
   };
 
+  const loadProfile = async()=>{
+    const res = await api.get("/profile");
+    setProfile(res.data);
+  };
+
   useEffect(()=>{
     loadMyComplaints();
     loadRoommates();
+    loadProfile();
   },[]);
 
   /* SUBMIT */
   const submitComplaint = async()=>{
-
     if(!message.trim()) return;
 
     try{
-
       const form=new FormData();
       form.append("message",message);
       form.append("priority",priority);
@@ -59,42 +81,29 @@ export default function Student() {
       loadMyComplaints();
 
     }catch(err){
-      alert(
-        err.response?.data ||
-        "Something went wrong"
-      );
+      alert(err.response?.data || "Something went wrong");
     }
   };
 
   /* DELETE */
   const deleteComplaint = async(id)=>{
     if(!window.confirm("Delete complaint?")) return;
-
-    try{
-      await api.delete(`/complaint/${id}`);
-      loadMyComplaints();
-    }catch(e){
-      alert(e.response?.data);
-    }
+    await api.delete(`/complaint/${id}`);
+    loadMyComplaints();
   };
 
   /* UPDATE */
   const updateComplaint = async()=>{
-    try{
-      await api.put(`/complaint/${edit.id}`,{
-        message:edit.message
-      });
-      setEdit(null);
-      loadMyComplaints();
-    }catch(e){
-      alert(e.response?.data);
-    }
+    await api.put(`/complaint/${edit.id}`,{
+      message:edit.message
+    });
+    setEdit(null);
+    loadMyComplaints();
   };
 
   /* RESOLVE */
   const markResolved = async(id)=>{
     if(!window.confirm("Mark as resolved?")) return;
-
     await api.put(`/complaint/update/${id}`,{
       status:"approved"
     });
@@ -129,227 +138,285 @@ export default function Student() {
     return new Date(a.created_at)-new Date(b.created_at);
   });
 
-  const daysPassed = date=>{
-    const d1=new Date(date);
-    const d2=new Date();
-    return Math.floor(
-      (d2-d1)/(1000*60*60*24)
-    );
-  };
-
   return(
     <>
-      <Navbar toggleSidebar={()=>setOpen(!open)} />
-      <Sidebar open={open} />
+      <Navbar />
 
       <div className="main">
 
         <h2>🎓 Student Dashboard</h2>
 
-        {/* ROOMMATES */}
-        <div className="card">
-          <h3>🏠 Roommates</h3>
+        {/* TABS */}
+        <div className="adminTabs">
 
-          {roommates.length===0 && (
-            <p>No roommates</p>
-          )}
-
-          {roommates.map((r,i)=>(
-            <p key={i}>
-              {r.name} | {r.dept} | Year {r.year}
-            </p>
-          ))}
-        </div>
-
-        {/* SUBMIT */}
-        <div className="card">
-
-          <h3>➕ New Complaint</h3>
-
-          <textarea
-            value={message}
-            maxLength={maxChars}
-            onChange={e=>setMessage(e.target.value)}
-            rows="4"
-            placeholder="Describe your issue..."
-          />
-
-          <small>
-            {message.length}/{maxChars} characters
-          </small>
-
-          <select
-            value={priority}
-            onChange={e=>setPriority(e.target.value)}
+          <button
+            className={`tabBtn ${tab==="complaints"?"active":""}`}
+            onClick={()=>setTab("complaints")}
           >
-            <option value="urgent">Urgent</option>
-            <option value="normal">Normal</option>
-          </select>
-
-          <input
-            type="file"
-            accept="image/*"
-            onChange={e=>setImage(e.target.files[0])}
-          />
-
-          <button onClick={submitComplaint}>
-            Submit Complaint
+            <FaClipboardList/> Complaints
           </button>
-        </div>
 
-        {/* FILTER */}
-        <div style={{display:"flex",gap:10}}>
-
-          <input
-            placeholder="Search..."
-            value={search}
-            onChange={e=>setSearch(e.target.value)}
-          />
-
-          <select
-            value={filter}
-            onChange={e=>setFilter(e.target.value)}
+          <button
+            className={`tabBtn ${tab==="roommates"?"active":""}`}
+            onClick={()=>setTab("roommates")}
           >
-            <option value="all">All</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="pending">Pending</option>
-          </select>
+            <FaUsers/> Roommates
+          </button>
 
-          <select
-            value={sort}
-            onChange={e=>setSort(e.target.value)}
+          <button
+            className={`tabBtn ${tab==="profile"?"active":""}`}
+            onClick={()=>setTab("profile")}
           >
-            <option value="new">Newest</option>
-            <option value="old">Oldest</option>
-          </select>
+            <FaUserCircle/> Profile
+          </button>
 
         </div>
 
-        <br/>
+{/* ================= COMPLAINT TAB ================= */}
+{tab==="complaints" && (
+<>
+{/* SUBMIT */}
+<div className="card">
 
-        {/* LIST */}
-        {filtered.map(c=>{
+<h3><FaPlus/> New Complaint</h3>
 
-          const days=daysPassed(c.created_at);
+<textarea
+ value={message}
+ maxLength={maxChars}
+ onChange={e=>setMessage(e.target.value)}
+ rows="4"
+ placeholder="Describe your issue..."
+/>
 
-          return(
-            <div key={c.id} className="card">
+<small>
+ {message.length}/{maxChars} characters
+</small>
 
-              <p>{c.message}</p>
+<select
+ className="customSelect"
+ value={priority}
+ onChange={e=>setPriority(e.target.value)}
+>
+ <option value="normal">Normal</option>
+ <option value="urgent">Urgent</option>
+</select>
 
-              {c.image && (
-                <img
-                  src={`http://localhost:5000/uploads/${c.image}`}
-                  width="100%"
-                  style={{borderRadius:14,marginBottom:10}}
-                />
-              )}
+<div className="fileBox">
+  <label className="fileBtn">
+    <FaUpload/> Upload Proof
+    <input
+      type="file"
+      hidden
+      accept="image/*"
+      onChange={e=>setImage(e.target.files[0])}
+    />
+  </label>
 
-              <p>
-                Priority:
-                <span className={`pri ${c.priority}`}>
-                  {c.priority}
-                </span>
-              </p>
+  <small className="fileHint">
+    Upload only if needed (damage, leakage etc.)
+  </small>
 
-              <p>
-                Status:
-                <span className={`status-${c.status}`}>
-                  {c.status}
-                </span>
-              </p>
+  {image && (
+    <p className="fileName">
+      Selected: {image.name}
+    </p>
+  )}
+</div>
 
-              {c.reply && (
-                <p style={{color:"#a78bfa"}}>
-                  💬 Caretaker: {c.reply}
-                </p>
-              )}
+<button onClick={submitComplaint}>
+ Submit Complaint
+</button>
+</div>
 
-              <p>
-                Days pending: {days}
-              </p>
+{/* FILTER */}
+<div className="filterRow">
 
-              {c.status==="pending" && days>=7 && (
-                <p style={{color:"#facc15"}}>
-                  ⚠ No response for 7 days.
-                </p>
-              )}
+<div className="inputIcon">
+ <FaSearch/>
+ <input
+  placeholder="Search..."
+  value={search}
+  onChange={e=>setSearch(e.target.value)}
+ />
+</div>
 
-              <div style={{marginTop:10}}>
+<div className="inputIcon">
+ <FaFilter/>
+ <select
+  value={filter}
+  onChange={e=>setFilter(e.target.value)}
+ >
+  <option value="all">All</option>
+  <option value="approved">Approved</option>
+  <option value="rejected">Rejected</option>
+  <option value="pending">Pending</option>
+ </select>
+</div>
 
-                <button
-                  onClick={() => setEdit(c)}
-                  style={{background:"#6366f1"}}
-                >
-                  Edit
-                </button>
+<div className="inputIcon">
+ <FaSort/>
+ <select
+  value={sort}
+  onChange={e=>setSort(e.target.value)}
+ >
+  <option value="new">Newest</option>
+  <option value="old">Oldest</option>
+ </select>
+</div>
 
-                <button
-                  onClick={() => deleteComplaint(c.id)}
-                  style={{
-                    background:"#ef4444",
-                    marginLeft:10
-                  }}
-                >
-                  Delete
-                </button>
+</div>
 
-                <button
-                  onClick={()=>markResolved(c.id)}
-                  style={{
-                    background:"#22c55e",
-                    marginLeft:10
-                  }}
-                >
-                  Mark Resolved
-                </button>
+<br/>
 
-                <button
-                  onClick={()=>downloadPDF(c)}
-                  style={{
-                    background:"#0ea5e9",
-                    marginLeft:10
-                  }}
-                >
-                  Download PDF
-                </button>
+{/* LIST */}
+{filtered.length===0 && (
+<p className="empty">No complaints found</p>
+)}
 
-              </div>
-            </div>
-          );
-        })}
+{filtered.map(c=>(
+<div key={c.id} className="card complaintCard">
 
-        {/* EDIT */}
-        {edit && (
-          <div className="card">
-            <h3>Edit Complaint</h3>
+<div className="complaintTop">
+ <span className={`status-${c.status}`}>
+  {c.status.toUpperCase()}
+ </span>
 
-            <textarea
-              value={edit.message}
-              onChange={e=>
-                setEdit({
-                  ...edit,
-                  message:e.target.value
-                })
-              }
-            />
+ <span className={`pri ${c.priority}`}>
+  {c.priority}
+ </span>
+</div>
 
-            <button onClick={updateComplaint}>
-              Save
-            </button>
+<p className="msg">{c.message}</p>
 
-            <button
-              onClick={()=>setEdit(null)}
-              style={{
-                marginLeft:10,
-                background:"#ef4444"
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+{c.image && (
+ <img
+  src={`http://localhost:5000/uploads/${c.image}`}
+  className="complaintImg"
+ />
+)}
+
+{c.reply && (
+ <p className="reply">
+  Caretaker: {c.reply}
+ </p>
+)}
+
+<div className="complaintActions">
+
+ <button onClick={()=>setEdit(c)}>
+  <FaEdit/> Edit
+ </button>
+
+ <button
+  onClick={()=>deleteComplaint(c.id)}
+  className="danger"
+ >
+  <FaTrash/> Delete
+ </button>
+
+ <button onClick={()=>markResolved(c.id)}>
+  <FaCheckCircle/> Resolve
+ </button>
+
+ <button onClick={()=>downloadPDF(c)}>
+  <FaFilePdf/> PDF
+ </button>
+
+</div>
+
+</div>
+))}
+</>
+)}
+
+{/* ================= ROOMMATES TAB ================= */}
+{tab==="roommates" && (
+<div className="card">
+<h3><FaUsers/> Roommates</h3>
+
+{roommates.length===0 && (
+ <p className="empty">No roommates</p>
+)}
+
+{roommates.map((r,i)=>(
+ <p key={i}>
+  {r.name} | {r.dept} | Year {r.year}
+ </p>
+))}
+</div>
+)}
+
+{/* ================= PROFILE TAB ================= */}
+{tab==="profile" && (
+<div className="profileCard">
+
+<div className="profileTop">
+  <div className="avatarBig">
+    {user?.name?.charAt(0)}
+  </div>
+
+  <div>
+    <h3>{user?.name}</h3>
+    <p>{user?.college_id}</p>
+  </div>
+</div>
+
+<div className="profileGrid">
+
+ <div>
+  <span>Department</span>
+  <p>{user?.dept || "-"}</p>
+ </div>
+
+ <div>
+  <span>Year</span>
+  <p>{user?.year || "-"}</p>
+ </div>
+
+ <div>
+  <span>Hostel</span>
+  <p>{user?.hostel || "-"}</p>
+ </div>
+
+ <div>
+  <span>Room</span>
+  <p>{user?.room_no || "-"}</p>
+ </div>
+
+ <div>
+  <span>Role</span>
+  <p>{user?.role}</p>
+ </div>
+
+</div>
+
+</div>
+)}
+
+{/* EDIT */}
+{edit && (
+<div className="card">
+<h3>Edit Complaint</h3>
+
+<textarea
+ value={edit.message}
+ onChange={e=>
+  setEdit({...edit,message:e.target.value})
+ }
+/>
+
+<button onClick={updateComplaint}>
+ Save
+</button>
+
+<button
+ onClick={()=>setEdit(null)}
+ style={{marginLeft:10,background:"#ef4444"}}
+>
+ Cancel
+</button>
+</div>
+)}
 
       </div>
     </>

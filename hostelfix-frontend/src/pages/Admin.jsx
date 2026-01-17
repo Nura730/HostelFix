@@ -1,236 +1,196 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
 import { toast } from "react-toastify";
-import Counter from "../components/Counter";
-
-import { PieChart, Pie, Tooltip } from "recharts";
-import jsPDF from "jspdf";
 
 export default function Admin(){
 
-  const [users,setUsers]=useState([]);
-  const [caretakers,setCaretakers]=useState([]);
-  const [map,setMap]=useState([]);
-  const [search,setSearch]=useState("");
-  const [open,setOpen]=useState(false);
-  const [tab,setTab]=useState("assign");
+/* STATES */
+const [users,setUsers]=useState([]);
+const [caretakers,setCaretakers]=useState([]);
+const [mapData,setMapData]=useState([]);
+const [rooms,setRooms]=useState([]);
+const [freeRooms,setFreeRooms]=useState([]);
 
-  /* ROOM STATES */
-  const [rooms,setRooms]=useState([]);
-  const [newRoom,setNewRoom]=useState({
-    room_no:"",
-    hostel_type:"boys",
-    capacity:""
+const [tab,setTab]=useState("assign");
+const [search,setSearch]=useState("");
+const [roomInfo, setRoomInfo] = useState(null);
+
+/* NEW USER */
+const [newUser,setNewUser]=useState({
+ name:"",
+ college_id:"",
+ password:"",
+ mobile:"",
+ email:"",
+ role:"student",
+ hostel:"boys",
+ dept:"",
+ year:"",
+ room_no:""
+});
+
+/* ROOM */
+const [newRoom,setNewRoom]=useState({
+ room_no:"",
+ hostel_type:"boys",
+ capacity:""
+});
+
+/* ROOM VIEW */
+const [roomSearch,setRoomSearch]=useState({
+ hostel:"",
+ room_no:""
+});
+const [roomMembers,setRoomMembers]=useState([]);
+
+/* FILTER */
+const [filters,setFilters]=useState({
+ room_no:"",
+ dept:"",
+ year:"",
+ hostel:""
+});
+const [filtered,setFiltered]=useState([]);
+
+/* LOAD */
+const load=async()=>{
+ try{
+  const [u,ct,m,r]=await Promise.all([
+   api.get("/admin/users"),
+   api.get("/admin/caretakers"),
+   api.get("/admin/mapping"),
+   api.get("/admin/rooms")
+  ]);
+
+  setUsers(u.data || []);
+  setCaretakers(ct.data || []);
+  setMapData(m.data || []);
+  setRooms(r.data || []);
+
+ }catch{
+  toast.error("Load failed");
+ }
+};
+
+useEffect(()=>{ load(); },[]);
+
+/* FREE ROOMS */
+useEffect(()=>{
+ api.get(`/admin/free-rooms?hostel=${newUser.hostel}`)
+ .then(r=>setFreeRooms(r.data || []));
+},[newUser.hostel]);
+
+/* ASSIGN */
+const assign=(student,caretaker)=>{
+ api.put("/admin/assign-student",{student,caretaker})
+ .then(()=>{ toast.success("Assigned"); load(); })
+ .catch(()=>toast.error("Failed"));
+};
+
+const unassign=id=>{
+ api.put(`/admin/unassign/${id}`)
+ .then(()=>{ toast.success("Removed"); load(); });
+};
+
+/* CREATE USER */
+const createUser=()=>{
+ if(!newUser.name||!newUser.college_id||!newUser.password)
+  return toast.error("Fill required fields");
+
+ api.post("/admin/create-user",newUser)
+ .then(()=>{
+  toast.success("User created");
+  setNewUser({
+   name:"",college_id:"",password:"",
+   mobile:"",email:"",
+   role:"student",hostel:"boys",
+   dept:"",year:"",room_no:""
   });
+  load();
+ })
+ .catch(()=>toast.error("Failed"));
+};
 
-  /* ROOM MEMBERS */
-  const [roomSearch,setRoomSearch]=useState({
-    hostel:"",
-    room_no:""
-  });
-  const [roomMembers,setRoomMembers]=useState([]);
+/* RESET / DELETE */
+const resetPwd=id=>{
+ const p=prompt("New password");
+ if(!p) return;
+ api.put(`/admin/reset-password/${id}`,{newPassword:p})
+ .then(()=>toast.success("Updated"));
+};
 
-  /* FILTER */
-  const [filters,setFilters]=useState({
-    room_no:"",
-    dept:"",
-    year:"",
-    hostel:""
-  });
-  const [filteredStudents,setFilteredStudents]=useState([]);
+const deleteUser=id=>{
+ if(!window.confirm("Delete user?")) return;
+ api.delete(`/admin/user/${id}`)
+ .then(()=>{toast.success("Deleted");load();});
+};
 
-  const [newUser,setNewUser]=useState({
-    college_id:"",
-    password:"",
-    role:"student",
-    hostel:"boys",
-    name:"",
-    mobile:"",
-    dept:"",
-    year:"",
-    room_no:"",
-    email:""
-  });
+/* ROOM CRUD */
+const addRoom=()=>{
+ api.post("/admin/room",newRoom)
+ .then(()=>{
+  toast.success("Room added");
+  setNewRoom({room_no:"",hostel_type:"boys",capacity:""});
+  load();
+ });
+};
 
-  const [freeRooms,setFreeRooms]=useState([]);
+const deleteRoom=id=>{
+ if(!window.confirm("Delete room?")) return;
+ api.delete(`/admin/room/${id}`)
+ .then(()=>{toast.success("Deleted");load();});
+};
 
-  /* LOAD DATA */
-  const load = async()=>{
-    try{
-      const [u,ct,m,r]=await Promise.all([
-        api.get("/admin/users"),
-        api.get("/admin/caretakers"),
-        api.get("/admin/mapping"),
-        api.get("/admin/rooms")
-      ]);
-      setUsers(u.data);
-      setCaretakers(ct.data);
-      setMap(m.data);
-      setRooms(r.data);
-    }catch{
-      toast.error("Load failed");
-    }
-  };
+const updateRoom=(id,cap)=>{
+ api.put(`/admin/room/${id}`,{capacity:cap})
+ .then(()=>toast.success("Updated"));
+};
 
-  useEffect(()=>{
-    load();
-  },[]);
+/* ROOM VIEW */
+const loadRoomMembers = async () => {
+  if (!roomSearch.room_no || !roomSearch.hostel)
+    return toast.error("Fill fields");
 
-  /* FREE ROOMS */
-  useEffect(()=>{
-    api.get(`/admin/free-rooms?hostel=${newUser.hostel}`)
-      .then(r=>setFreeRooms(r.data));
-  },[newUser.hostel]);
-
-  /* PDF EXPORT */
-  const exportPDF=()=>{
-    const doc=new jsPDF();
-    users.forEach((u,i)=>{
-      doc.text(
-        `${i+1}. ${u.college_id} - ${u.role}`,
-        10,
-        10+(i*10)
-      );
-    });
-    doc.save("users.pdf");
-  };
-
-  /* PIE DATA */
-  const chartData = [
-    {name:"Students",value:users.filter(u=>u.role==="student").length},
-    {name:"Caretakers",value:users.filter(u=>u.role==="caretaker").length},
-    {name:"Admins",value:users.filter(u=>u.role==="admin").length},
-  ];
-
-  const assign=(student,caretaker)=>{
-    api.put("/admin/assign-student",{student,caretaker})
-      .then(()=>{ toast.success("Assigned"); load(); })
-      .catch(e=>toast.error(e.response?.data || "Error"));
-  };
-
-  const unassign=id=>{
-    api.put(`/admin/unassign/${id}`)
-      .then(()=>{ toast.success("Removed"); load(); });
-  };
-
-  const createUser=()=>{
-    if(!newUser.college_id || !newUser.password || !newUser.name){
-      toast.error("Required fields missing"); return;
-    }
-
-    api.post("/admin/create-user",newUser)
-      .then(()=>{
-        toast.success("User created");
-        setNewUser({
-          college_id:"",
-          password:"",
-          role:"student",
-          hostel:"boys",
-          name:"",
-          mobile:"",
-          dept:"",
-          year:"",
-          room_no:"",
-          email:""
-        });
-        load();
-      })
-      .catch(e=>toast.error(e.response?.data || "Failed"));
-  };
-
-  const resetPwd=id=>{
-    const pwd = prompt("Enter new password");
-    if(!pwd) return;
-    api.put(`/admin/reset-password/${id}`,{ newPassword:pwd })
-      .then(()=>toast.success("Password reset"));
-  };
-
-  const deleteUser=id=>{
-    if(!window.confirm("Delete user?")) return;
-    api.delete(`/admin/user/${id}`)
-      .then(()=>{ toast.success("Deleted"); load(); });
-  };
-
-  /* ROOM CRUD */
-  const addRoom=()=>{
-    api.post("/admin/room",newRoom)
-      .then(()=>{
-        toast.success("Room added");
-        setNewRoom({room_no:"",hostel_type:"boys",capacity:""});
-        load();
-      })
-      .catch(e=>toast.error(e.response?.data));
-  };
-
-  const deleteRoom=id=>{
-    if(!window.confirm("Delete room?")) return;
-    api.delete(`/admin/room/${id}`)
-      .then(()=>{ toast.success("Room deleted"); load(); });
-  };
-
-  const updateRoom=(id,cap)=>{
-    api.put(`/admin/room/${id}`,{capacity:cap})
-      .then(()=>{ toast.success("Updated"); load(); });
-  };
-
-  /* ROOM MEMBERS */
-  const loadRoomMembers=async()=>{
-    if(!roomSearch.room_no||!roomSearch.hostel)
-      return toast.error("Fill fields");
-
-    const res=await api.get(
+  try{
+    const res = await api.get(
       `/admin/room/${roomSearch.hostel}/${roomSearch.room_no}`
     );
-    setRoomMembers(res.data);
-  };
 
-  /* FILTER */
-  const applyFilter=async()=>{
-    const res=await api.get("/admin/filter",{params:filters});
-    setFilteredStudents(res.data);
-  };
+    setRoomMembers(res.data.members || []);
+    setRoomInfo(res.data.room || null);
 
-  return(
-  <>
-   <Navbar toggleSidebar={()=>setOpen(!open)}/>
-   <Sidebar open={open}/>
+  }catch{
+    toast.error("Room not found");
+    setRoomMembers([]);
+    setRoomInfo(null);
+  }
+};
 
-   <div className="main">
+/* FILTER */
+const applyFilter=async()=>{
+ const res=await api.get("/admin/filter",{params:filters});
+ setFiltered(res.data || []);
+};
 
-{/* HEADER */}
-<div style={{display:"flex",justifyContent:"space-between"}}>
+/* DROPDOWN CLASS */
+const dd="glassSelect";
+
+return(
+<>
+<Navbar/>
+
+<div className="main">
+
 <h2>🛡 Admin Control</h2>
-<button onClick={exportPDF}>Export PDF</button>
-</div>
-
-{/* ANALYTICS */}
-<div className="card">
-<h3>User Analytics</h3>
-<PieChart width={300} height={300}>
- <Pie data={chartData} dataKey="value" />
- <Tooltip/>
-</PieChart>
-</div>
-
-
-<h2>
- Total Students:
- <Counter to={users.filter(u=>u.role==="student").length}/>
-</h2>
-
 
 {/* TABS */}
-<div style={{display:"flex",gap:10,marginBottom:20}}>
+<div className="adminTabs">
 {["assign","add","map","manage","rooms","filter","roomview"].map(t=>(
 <button
  key={t}
+ className={`tabBtn ${tab===t?"active":""}`}
  onClick={()=>setTab(t)}
- style={{
-  background:tab===t?"#8b5cf6":"rgba(255,255,255,.08)",
-  color:tab===t?"black":"white"
- }}
 >
 {t.toUpperCase()}
 </button>
@@ -239,37 +199,30 @@ export default function Admin(){
 
 {/* ASSIGN */}
 {tab==="assign" && (
-<>
-<h3>Assign Students</h3>
+<div className="card">
+<h3>🎯 Assign Students</h3>
 
 <input
- placeholder="Search..."
+ placeholder="Search student..."
  value={search}
  onChange={e=>setSearch(e.target.value)}
 />
 
-<div className="card">
-{users.filter(u=>
- u.role==="student" &&
+{users
+.filter(u=>u.role==="student")
+.filter(u=>
  u.college_id.toLowerCase().includes(search.toLowerCase())
-).map(s=>(
-<div key={s.id}
- style={{
-  display:"flex",
-  justifyContent:"space-between",
-  marginBottom:10
- }}>
+)
+.map(s=>(
+<div key={s.id} className="row">
 
-<span>{s.college_id}</span>
+<b>{s.college_id}</b>
 
 <select
- value={s.assigned_caretaker || ""}
- onChange={e=>{
-   if(!e.target.value) return;
-   assign(s.college_id, e.target.value);
- }}
+ className={dd}
+ value={s.assigned_caretaker||""}
+ onChange={e=>assign(s.college_id,e.target.value)}
 >
-
 <option value="">Not assigned</option>
 {caretakers
 .filter(c=>c.hostel===s.hostel)
@@ -282,24 +235,21 @@ export default function Admin(){
 
 {s.assigned_caretaker && (
 <button
- style={{background:"#ef4444"}}
+ className="danger"
  onClick={()=>unassign(s.id)}
 >
 Remove
 </button>
 )}
-
 </div>
 ))}
 </div>
-</>
 )}
 
-{/* ADD USER */}
-{/* ADD USER */}
+{/* ADD */}
 {tab==="add" && (
 <div className="card">
-<h3>Add User</h3>
+<h3>➕ Create User</h3>
 
 <input placeholder="Name"
  value={newUser.name}
@@ -316,18 +266,8 @@ Remove
  onChange={e=>setNewUser({...newUser,password:e.target.value})}
 />
 
-<input placeholder="Mobile"
- value={newUser.mobile}
- onChange={e=>setNewUser({...newUser,mobile:e.target.value})}
-/>
-
-<input placeholder="Email"
- value={newUser.email}
- onChange={e=>setNewUser({...newUser,email:e.target.value})}
-/>
-
-{/* ROLE */}
 <select
+ className={dd}
  value={newUser.role}
  onChange={e=>setNewUser({...newUser,role:e.target.value})}
 >
@@ -336,66 +276,43 @@ Remove
 <option value="admin">Admin</option>
 </select>
 
-{/* STUDENT FIELDS */}
 {newUser.role==="student" && (
 <>
-<select
- value={newUser.dept}
- onChange={e=>setNewUser({...newUser,dept:e.target.value})}
->
-<option value="">Select Dept</option>
-<option value="CSE">CSE</option>
-<option value="MECH">MECH</option>
-<option value="EEE">EEE</option>
-<option value="ECE">ECE</option>
+<select className={dd}
+ onChange={e=>setNewUser({...newUser,dept:e.target.value})}>
+<option value="">Dept</option>
+<option>CSE</option>
+<option>EEE</option>
+<option>ECE</option>
+<option>MECH</option>
 </select>
 
-<select
- value={newUser.year}
- onChange={e=>setNewUser({...newUser,year:e.target.value})}
->
-<option value="">Select Year</option>
-<option value="I">I</option>
-<option value="II">II</option>
-<option value="III">III</option>
-<option value="IV">IV</option>
+<select className={dd}
+ onChange={e=>setNewUser({...newUser,year:e.target.value})}>
+<option value="">Year</option>
+<option>I</option>
+<option>II</option>
+<option>III</option>
+<option>IV</option>
 </select>
 
-<select
- value={newUser.hostel}
- onChange={e=>setNewUser({...newUser,hostel:e.target.value})}
->
+<select className={dd}
+ onChange={e=>setNewUser({...newUser,hostel:e.target.value})}>
 <option value="boys">Boys</option>
 <option value="girls">Girls</option>
 </select>
 
-<select
- value={newUser.room_no}
- onChange={e=>setNewUser({...newUser,room_no:e.target.value})}
->
-<option value="">Select Room</option>
+<select className={dd}
+ onChange={e=>setNewUser({...newUser,room_no:e.target.value})}>
+<option value="">Room</option>
 {freeRooms.map(r=>(
 <option key={r.room_no} value={r.room_no}>
- {r.room_no} (free {r.free})
+ {r.room_no} (Free {r.free})
 </option>
 ))}
 </select>
 </>
 )}
-
-{/* CARETAKER FIELDS */}
-{newUser.role==="caretaker" && (
-<select
- value={newUser.hostel}
- onChange={e=>setNewUser({...newUser,hostel:e.target.value})}
->
-<option value="">Select Hostel</option>
-<option value="boys">Boys</option>
-<option value="girls">Girls</option>
-</select>
-)}
-
-{/* ADMIN → no extra fields */}
 
 <button onClick={createUser}>
 Create User
@@ -403,15 +320,21 @@ Create User
 </div>
 )}
 
-
 {/* MAP */}
 {tab==="map" && (
 <div className="card">
-<h3>Mapping</h3>
-{map.map(m=>(
-<p key={m.student}>
- {m.student} → {m.caretaker || "Not assigned"}
-</p>
+<h3>🔗 Student Mapping</h3>
+
+{mapData.length===0 && <p>No mapping</p>}
+
+{mapData.map(m=>(
+<div key={m.student} className="mapRow">
+<span>👤 {m.student}</span>
+<span>➡</span>
+<span>
+{m.caretaker ? `🛠 ${m.caretaker}` : "Not assigned"}
+</span>
+</div>
 ))}
 </div>
 )}
@@ -419,22 +342,20 @@ Create User
 {/* MANAGE */}
 {tab==="manage" && (
 <div className="card">
-<h3>Manage Users</h3>
+<h3>👥 Manage Users</h3>
 
 {users.map(u=>(
-<div key={u.id}
- style={{
-  display:"flex",
-  justifyContent:"space-between",
-  marginBottom:8
- }}>
+<div key={u.id} className="row">
 
-<span>{u.college_id} - {u.role}</span>
+<span>{u.college_id} ({u.role})</span>
 
 <div>
-<button onClick={()=>resetPwd(u.id)}>Reset</button>
+<button onClick={()=>resetPwd(u.id)}>
+Reset
+</button>
+
 <button
- style={{background:"#ef4444",marginLeft:6}}
+ className="danger"
  onClick={()=>deleteUser(u.id)}
 >
 Delete
@@ -449,14 +370,14 @@ Delete
 {/* ROOMS */}
 {tab==="rooms" && (
 <div className="card">
-<h3>Room Management</h3>
+<h3>🏠 Room Management</h3>
 
 <input placeholder="Room no"
  value={newRoom.room_no}
  onChange={e=>setNewRoom({...newRoom,room_no:e.target.value})}
 />
 
-<select
+<select className={dd}
  value={newRoom.hostel_type}
  onChange={e=>setNewRoom({...newRoom,hostel_type:e.target.value})}
 >
@@ -472,22 +393,30 @@ Delete
 <button onClick={addRoom}>Add Room</button>
 
 {rooms.map(r=>(
-<div key={r.id}
- style={{display:"flex",justifyContent:"space-between"}}
->
-<span>{r.room_no} ({r.hostel_type})</span>
+<div key={r.id} className="row">
+
+<span>
+ {r.room_no} ({r.hostel_type})
+</span>
+
+<span>
+ Filled: {r.members || 0} / {r.capacity}
+</span>
+
 <div>
 <input
  defaultValue={r.capacity}
  onBlur={e=>updateRoom(r.id,e.target.value)}
 />
+
 <button
- style={{background:"#ef4444"}}
+ className="danger"
  onClick={()=>deleteRoom(r.id)}
 >
 Delete
 </button>
 </div>
+
 </div>
 ))}
 </div>
@@ -496,9 +425,9 @@ Delete
 {/* FILTER */}
 {tab==="filter" && (
 <div className="card">
-<h3>Filter Students</h3>
+<h3>🔍 Filter Students</h3>
 
-<input placeholder="Room no"
+<input placeholder="Room"
  onChange={e=>setFilters({...filters,room_no:e.target.value})}
 />
 
@@ -510,7 +439,7 @@ Delete
  onChange={e=>setFilters({...filters,year:e.target.value})}
 />
 
-<select
+<select className={dd}
  onChange={e=>setFilters({...filters,hostel:e.target.value})}
 >
 <option value="">Hostel</option>
@@ -518,9 +447,11 @@ Delete
 <option value="girls">Girls</option>
 </select>
 
-<button onClick={applyFilter}>Apply</button>
+<button onClick={applyFilter}>
+Apply
+</button>
 
-{filteredStudents.map(s=>(
+{filtered.map(s=>(
 <p key={s.college_id}>
 {s.college_id} | {s.dept} | {s.year} | {s.room_no}
 </p>
@@ -531,9 +462,9 @@ Delete
 {/* ROOM VIEW */}
 {tab==="roomview" && (
 <div className="card">
-<h3>Room Members</h3>
+<h3>🏘 Room Members</h3>
 
-<select
+<select className={dd}
  onChange={e=>setRoomSearch({
   ...roomSearch,
   hostel:e.target.value
@@ -544,8 +475,7 @@ Delete
 <option value="girls">Girls</option>
 </select>
 
-<input
- placeholder="Room no"
+<input placeholder="Room no"
  onChange={e=>setRoomSearch({
   ...roomSearch,
   room_no:e.target.value
@@ -556,15 +486,36 @@ Delete
 Search
 </button>
 
-{roomMembers.map((m,i)=>(
-<p key={i}>
-{m.name} | {m.role} | {m.dept}
-</p>
+{/* ROOM INFO */}
+{roomInfo && (
+<div className="roomInfo">
+<b>Room {roomInfo.room_no}</b><br/>
+Capacity: {roomInfo.capacity}<br/>
+Filled: {roomInfo.members}
+</div>
+)}
+
+{/* MEMBERS */}
+{roomMembers.length===0 && roomInfo && (
+<p>No members</p>
+)}
+
+{roomMembers.map((m, i) => (
+<div key={i} className="memberCard">
+
+<h4>{m.name}</h4>
+
+<p>ID: {m.college_id}</p>
+<p>Dept: {m.dept}</p>
+<p>Year: {m.year}</p>
+<p>Role: {m.role}</p>
+
+</div>
 ))}
 </div>
 )}
 
-   </div>
-  </>
-  );
+</div>
+</>
+);
 }

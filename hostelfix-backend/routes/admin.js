@@ -319,4 +319,27 @@ router.get("/room/:hostel/:room",
   );
  });
 
+
+
+ /* ================= MAPPING ================= */
+
+router.get("/mapping",
+ auth(["admin"]),
+ (req,res)=>{
+
+  db.query(
+   `SELECT college_id AS student,
+           assigned_caretaker AS caretaker
+    FROM users
+    WHERE role='student'`,
+   (err,data)=>{
+    if(err) return res.status(500).json(err);
+    res.json(data);
+   }
+  );
+
+});
+
+
+
 module.exports = router;
