@@ -1,187 +1,448 @@
-.loginWrap{
- display:flex;
- justify-content:center;
- align-items:center;
- height:100vh;
- background:
-  linear-gradient(135deg,#020617,#1e1b4b);
+/* ================= LOGIN PAGE ================= */
+
+.loginPage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #020617 0%, #1e1b4b 50%, #312e81 100%);
+  padding: 20px;
 }
 
-/* REMOVE LEFT PANEL EFFECT */
-.loginLeft{
- display:none;
+.loginCard {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  padding: 40px 30px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  animation: slideUp 0.5s ease;
 }
 
-.loginLeft h1{
- font-size:60px;
- color:#ff00e8;
- text-shadow:0 0 40px #ff00e8;
+.registerCard {
+  max-width: 450px;
 }
 
-.loginLeft p{
- opacity:.7;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* RIGHT */
-.loginCard{
- width:380px;
- background:rgba(255,255,255,.08);
- backdrop-filter:blur(30px);
- padding:30px;
- border-radius:28px;
- box-shadow:0 0 60px #000;
- animation:float 4s ease infinite;
+.loginLogo {
+  font-size: 50px;
+  margin-bottom: 10px;
+  animation: bounce 2s infinite;
 }
 
-
-/* LOGO */
-.logoRow{
- display:flex;
- gap:10px;
- align-items:center;
- justify-content:center;
- margin-bottom:20px;
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
-.logoRow svg{
- color:#ff00e8;
- font-size:26px;
+.loginCard h2 {
+  color: #fff;
+  font-size: 28px;
+  margin-bottom: 8px;
+  font-weight: 700;
 }
 
-/* INPUT */
-.loginCard input{
- width:100%;
- padding:14px;
- border:none;
- border-radius:14px;
- background:rgba(255,255,255,.1);
- color:white;
- margin-bottom:14px;
+.loginCard .subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin-bottom: 30px;
 }
 
-.loginCard input:focus{
- outline:2px solid #ff00e8;
- animation:bounce .3s;
+/* Input Group */
+.inputGroup {
+  position: relative;
+  margin-bottom: 16px;
 }
 
-/* PASSWORD */
-.passWrap{
- position:relative;
+.inputGroup .inputIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a78bfa;
+  font-size: 16px;
 }
 
-.passWrap svg{
- position:absolute;
- right:12px;
- top:14px;
- cursor:pointer;
- color:#ff00e8;
+.inputGroup input {
+  width: 100%;
+  padding: 14px 14px 14px 45px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 15px;
+  transition: all 0.3s ease;
 }
 
-/* BUTTON */
-.loginCard button{
- width:100%;
- background:#ff00e8;
- color:black;
- padding:12px;
- border:none;
- border-radius:18px;
- font-weight:bold;
+.inputGroup input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
-/* EXTRAS */
-.extras{
- margin-top:16px;
- text-align:center;
+.inputGroup input:focus {
+  outline: none;
+  border-color: #a78bfa;
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.forgot{
- cursor:pointer;
- color:#a78bfa;
+.inputGroup input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.roles{
- display:flex;
- justify-content:center;
- gap:10px;
- margin-top:10px;
+/* Button */
+.loginCard button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.roles span{
- background:rgba(255,255,255,.1);
- padding:4px 10px;
- border-radius:999px;
- font-size:12px;
+.loginCard button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
 }
 
-/* ANIM */
-@keyframes float{
- 0%,100%{transform:translateY(0)}
- 50%{transform:translateY(-6px)}
+.loginCard button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-@keyframes bounce{
- 0%{transform:scale(1)}
- 50%{transform:scale(1.05)}
- 100%{transform:scale(1)}
+.loginCard .secondaryBtn {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin-top: 10px;
 }
 
-/* SHAKE */
-.shake{
- animation:shake .3s;
+.loginCard .secondaryBtn:hover:not(:disabled) {
+  border-color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
 }
 
-@keyframes shake{
- 0%{transform:translateX(0)}
- 25%{transform:translateX(-5px)}
- 50%{transform:translateX(5px)}
- 75%{transform:translateX(-5px)}
- 100%{transform:translateX(0)}
+/* Links */
+.loginLinks {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* MOBILE */
-@media(max-width:768px){
- .loginWrap{
-  flex-direction:column;
- }
- .loginLeft{
-  display:none;
- }
-}
-.particles{
- position:fixed;
- inset:0;
- overflow:hidden;
- z-index:-1;
+.loginLinks a {
+  color: #a78bfa;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s;
 }
 
-.particles span{
- position:absolute;
- width:6px;
- height:6px;
- background:#ff00e8;
- border-radius:50%;
- animation:float 10s linear infinite;
- opacity:.5;
-}
-.loginCard{
- transition:transform .2s;
+.loginLinks a:hover {
+  color: #c4b5fd;
+  text-decoration: underline;
 }
 
-.loginCard:hover{
- transform:rotateX(5deg) rotateY(-5deg);
-}
-.logo{
- animation:pop .8s ease;
+.loginLinks .divider {
+  color: rgba(255, 255, 255, 0.3);
 }
 
-@keyframes pop{
- from{transform:scale(0);opacity:0}
- to{transform:scale(1);opacity:1}
-}
-.loginCard.success{
- animation:zoomOut .8s ease forwards;
+/* Back Link */
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: color 0.3s;
 }
 
-@keyframes zoomOut{
- to{transform:scale(1.2);opacity:0}
+.backLink:hover {
+  color: #a78bfa;
+}
+
+/* Step Info */
+.stepInfo {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Note */
+.loginCard .note {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  margin-top: 20px;
+  line-height: 1.5;
+}
+
+/* Footer */
+.loginFooter {
+  margin-top: 30px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+}
+
+/* ================= NOT FOUND PAGE ================= */
+
+.notFoundPage {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #020617 0%, #1e1b4b 100%);
+  padding: 20px;
+}
+
+.notFoundContent {
+  text-align: center;
+  color: #fff;
+}
+
+.notFoundIcon {
+  font-size: 80px;
+  color: #f59e0b;
+  margin-bottom: 20px;
+}
+
+.notFoundContent h1 {
+  font-size: 120px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  line-height: 1;
+}
+
+.notFoundContent h2 {
+  font-size: 28px;
+  margin: 20px 0 10px;
+}
+
+.notFoundContent p {
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 30px;
+}
+
+.notFoundContent .homeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.notFoundContent .homeBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}
+
+/* ================= ERROR PAGE ================= */
+
+.errorPage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #020617 0%, #1e1b4b 100%);
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+}
+
+.errorPage h2 {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.errorPage p {
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 30px;
+}
+
+.errorPage button {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.errorPage button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+}
+
+/* ================= CONFIRM MODAL ================= */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirmModal {
+  background: #1e1b4b;
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modalClose {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 5px;
+  transition: color 0.3s;
+}
+
+.modalClose:hover {
+  color: #fff;
+}
+
+.modalIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 20px;
+  font-size: 24px;
+}
+
+.confirmModal h3 {
+  color: #fff;
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.confirmModal p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin-bottom: 25px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modalActions button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.modalActions .cancelBtn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.modalActions .cancelBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.modalActions .confirmBtn {
+  color: #fff;
+}
+
+.modalActions .confirmBtn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 480px) {
+  .loginCard {
+    padding: 30px 20px;
+  }
+
+  .loginCard h2 {
+    font-size: 24px;
+  }
+
+  .notFoundContent h1 {
+    font-size: 80px;
+  }
 }

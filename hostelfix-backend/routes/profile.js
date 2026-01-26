@@ -1,112 +1,167 @@
 const express = require("express");
-const db = require("../config/db");
+const bcrypt = require("bcryptjs");
+const { pool } = require("../config/db");
 const auth = require("../middleware/auth");
-const multer = require("multer");
+const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
 
-/* ================= IMAGE UPLOAD ================= */
-
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
-});
-
-const upload = multer({ storage });
-
 /* ================= GET PROFILE ================= */
 
-router.get("/",
-  auth(["student","caretaker","admin"]),
-  (req,res)=>{
-
-    db.query(
-      `SELECT 
-        id,
-        college_id,
-        role,
-        dept,
-        year,
-        hostel_type,
-        room_no,
-        image
-       FROM users 
-       WHERE id=?`,
+router.get(
+  "/",
+  auth(["student", "caretaker", "admin"]),
+  asyncHandler(async (req, res) => {
+    const [users] = await pool.query(
+      `SELECT id, college_id, role, name, email, mobile, hostel, 
+              dept, year, room_no, assigned_caretaker, created_at
+       FROM users WHERE id = ?`,
       [req.user.id],
-      (err,data)=>{
-        if(err) return res.status(500).json(err);
-        res.json(data[0]);
-      }
     );
-  }
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, msg: "User not found" });
+    }
+
+    res.json({ success: true, data: users[0] });
+  }),
 );
 
-/* ================= UPDATE IMAGE ================= */
+/* ================= UPDATE PROFILE ================= */
 
-router.put("/image",
-  auth(["student","caretaker","admin"]),
-  upload.single("image"),
-  (req,res)=>{
+router.put(
+  "/",
+  auth(["student", "caretaker", "admin"]),
+  asyncHandler(async (req, res) => {
+    const { name, email, mobile } = req.body;
 
-    if(!req.file)
-      return res.status(400).json("Image required");
+    // Validate email format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Invalid email format" });
+    }
 
-    db.query(
-      "UPDATE users SET image=? WHERE id=?",
-      [req.file.filename, req.user.id],
-      err=>{
-        if(err) return res.status(500).json(err);
-        res.json("Profile updated");
-      }
+    // Validate mobile if provided
+    if (mobile && !/^[0-9]{10}$/.test(mobile)) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Invalid mobile number" });
+    }
+
+    await pool.query(
+      `UPDATE users SET 
+       name = COALESCE(?, name),
+       email = COALESCE(?, email),
+       mobile = COALESCE(?, mobile)
+       WHERE id = ?`,
+      [name, email, mobile, req.user.id],
     );
-  }
+
+    res.json({ success: true, msg: "Profile updated" });
+  }),
 );
 
-/* ================= ROOMMATES (STUDENT) ================= */
+/* ================= CHANGE PASSWORD ================= */
 
-router.get("/roommates",
+router.put(
+  "/change-password",
+  auth(["student", "caretaker", "admin"]),
+  asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Both passwords required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          msg: "Password must be at least 6 characters",
+        });
+    }
+
+    // Get current password
+    const [users] = await pool.query(
+      "SELECT password FROM users WHERE id = ?",
+      [req.user.id],
+    );
+
+    // Verify current password
+    const match = await bcrypt.compare(currentPassword, users[0].password);
+    if (!match) {
+      return res
+        .status(400)
+        .json({ success: false, msg: "Current password is incorrect" });
+    }
+
+    // Update password
+    const hash = await bcrypt.hash(newPassword, 12);
+    await pool.query("UPDATE users SET password = ? WHERE id = ?", [
+      hash,
+      req.user.id,
+    ]);
+
+    res.json({ success: true, msg: "Password changed successfully" });
+  }),
+);
+
+/* ================= GET ROOMMATES ================= */
+
+router.get(
+  "/roommates",
   auth(["student"]),
-  (req,res)=>{
-
-    /* GET STUDENT ROOM */
-    db.query(
-      `SELECT room_no,hostel_type 
-       FROM users 
-       WHERE id=?`,
+  asyncHandler(async (req, res) => {
+    // Get current user's room
+    const [users] = await pool.query(
+      "SELECT room_no, hostel FROM users WHERE id = ?",
       [req.user.id],
-      (err,row)=>{
-        if(err) return res.status(500).json(err);
-        if(!row.length)
-          return res.status(404).json("User not found");
-
-        const { room_no, hostel_type } = row[0];
-
-        if(!room_no)
-          return res.json([]);
-
-        /* FETCH ROOMMATES */
-        db.query(
-          `SELECT 
-            name,
-            college_id,
-            dept,
-            year
-           FROM users
-           WHERE room_no=?
-           AND hostel_type=?
-           AND role='student'
-           AND id!=?`,
-          [room_no, hostel_type, req.user.id],
-          (err2,data)=>{
-            if(err2) return res.status(500).json(err2);
-            res.json(data);
-          }
-        );
-      }
     );
-  }
+
+    if (users.length === 0 || !users[0].room_no) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const { room_no, hostel } = users[0];
+
+    // Get roommates
+    const [roommates] = await pool.query(
+      `SELECT name, college_id, dept, year 
+       FROM users 
+       WHERE room_no = ? AND hostel = ? AND id != ?`,
+      [room_no, hostel, req.user.id],
+    );
+
+    res.json({ success: true, data: roommates });
+  }),
+);
+
+/* ================= GET CARETAKER INFO ================= */
+
+router.get(
+  "/my-caretaker",
+  auth(["student"]),
+  asyncHandler(async (req, res) => {
+    const [users] = await pool.query(
+      "SELECT assigned_caretaker FROM users WHERE id = ?",
+      [req.user.id],
+    );
+
+    if (!users[0]?.assigned_caretaker) {
+      return res.json({ success: true, data: null });
+    }
+
+    const [caretakers] = await pool.query(
+      "SELECT name, email, mobile FROM users WHERE college_id = ?",
+      [users[0].assigned_caretaker],
+    );
+
+    res.json({ success: true, data: caretakers[0] || null });
+  }),
 );
 
 module.exports = router;

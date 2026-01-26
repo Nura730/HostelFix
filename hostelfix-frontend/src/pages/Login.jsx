@@ -1,129 +1,125 @@
-import { useState } from "react";
-import api from "../api/api";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { FaEye, FaEyeSlash, FaUserLock } from "react-icons/fa";
+import api, { getErrorMessage } from "../api/api";
+import { FaUser, FaLock, FaSignInAlt } from "react-icons/fa";
+import LoadingSpinner from "../components/LoadingSpinner";
 import "./login.css";
 
-export default function Login(){
+export default function Login() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [success,setSuccess]=useState(false);
-  const [show,setShow]=useState(false);
-  const [loading,setLoading]=useState(false);
-  const [error,setError]=useState(false);
+  const [collegeId, setCollegeId] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  const [form,setForm]=useState({
-    college_id:"",
-    password:""
-  });
+  // Check if session expired
+  useEffect(() => {
+    if (searchParams.get("expired") === "true") {
+      toast.warning("Session expired. Please login again.");
+    }
+    setChecking(false);
+  }, [searchParams]);
 
-  const handleLogin = async () =>{
-    if(!form.college_id || !form.password){
-      toast.error("All fields required");
-      return;
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    if (!collegeId.trim() || !password.trim()) {
+      return toast.error("Please fill all fields");
     }
 
-    try{
-      setLoading(true);
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/login", {
+        college_id: collegeId,
+        password,
+      });
 
-      const res = await api.post("/admin/login",form);
+      // Save token and user
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      localStorage.setItem("token",res.data.token);
-      localStorage.setItem("user",JSON.stringify(res.data.user));
+      toast.success("Login successful!");
 
-      toast.success("Login success");
-      setSuccess(true);
-
+      // Redirect based on role
       const role = res.data.user.role;
+      const redirectPath = {
+        student: "/student",
+        caretaker: "/caretaker",
+        admin: "/admin",
+      };
 
-      setTimeout(()=>{
-        if(role==="admin") window.location="/admin";
-        else if(role==="caretaker") window.location="/caretaker";
-        else window.location="/student";
-      },800);
-
-    }catch{
-      setError(true);
-      setTimeout(()=>setError(false),500);
-      toast.error("Invalid credentials");
-    }finally{
+      navigate(redirectPath[role] || "/student");
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
       setLoading(false);
     }
   };
 
-  return(
-    <div className="loginWrap">
-
-      {/* PARTICLES */}
-      <div className="particles">
-        {[...Array(30)].map((_,i)=>(
-          <span key={i}
-           style={{
-            left:Math.random()*100+"%",
-            animationDelay:i+"s"
-           }}
-          />
-        ))}
+  if (checking) {
+    return (
+      <div className="loginPage">
+        <LoadingSpinner size="large" />
       </div>
+    );
+  }
 
-      {/* LEFT */}
-      <div className="loginLeft">
-        <h1>HostelFix</h1>
-        <p>Smart Hostel Management System</p>
-      </div>
+  return (
+    <div className="loginPage">
+      <div className="loginCard">
+        <div className="loginLogo">🏠</div>
+        <h2>HostelFix</h2>
+        <p className="subtitle">Hostel Complaint Management</p>
 
-      {/* RIGHT */}
-      <div className={`loginCard 
-        ${error?"shake":""} 
-        ${success?"success":""}`}>
-
-        <div className="logoRow">
-          <FaUserLock/>
-          <h2>Login</h2>
-        </div>
-
-        <input
-          placeholder="College ID"
-          value={form.college_id}
-          onChange={e=>
-            setForm({...form,college_id:e.target.value})
-          }
-        />
-
-        <div className="passWrap">
-          <input
-            type={show?"text":"password"}
-            placeholder="Password"
-            value={form.password}
-            onChange={e=>
-              setForm({...form,password:e.target.value})
-            }
-          />
-          {show
-            ? <FaEyeSlash onClick={()=>setShow(false)}/>
-            : <FaEye onClick={()=>setShow(true)}/>
-          }
-        </div>
-
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-        >
-          {loading?"Logging in...":"Login"}
-        </button>
-
-        <div className="extras">
-          <span className="forgot">
-            Forgot password?
-          </span>
-
-          <div className="roles">
-            <span>Student</span>
-            <span>Caretaker</span>
-            <span>Admin</span>
+        <form onSubmit={handleLogin}>
+          <div className="inputGroup">
+            <FaUser className="inputIcon" />
+            <input
+              type="text"
+              placeholder="College ID"
+              value={collegeId}
+              onChange={(e) => setCollegeId(e.target.value)}
+              disabled={loading}
+              autoComplete="username"
+            />
           </div>
-        </div>
 
+          <div className="inputGroup">
+            <FaLock className="inputIcon" />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              autoComplete="current-password"
+            />
+          </div>
+
+          <button type="submit" disabled={loading}>
+            {loading ? (
+              <>Logging in...</>
+            ) : (
+              <>
+                <FaSignInAlt /> Login
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="loginLinks">
+          <Link to="/forgot-password">Forgot Password?</Link>
+          <span className="divider">•</span>
+          <Link to="/register">Create Account</Link>
+        </div>
       </div>
+
+      <footer className="loginFooter">
+        <p>© 2026 HostelFix. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
